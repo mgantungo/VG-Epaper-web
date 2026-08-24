@@ -1,0 +1,117 @@
+<script setup lang="ts">
+/**
+ * Route: /[...date] — /, /2026/08/22, etc.
+ * No date in the URL -> defaults to today, same rule as the middleware's
+ * `GET /api/editions/today` endpoint (this page just calls that with an
+ * explicit ISO date so links/bookmarks are stable, rather than baking
+ * "today" into the URL itself).
+ */
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { useRoute, useRouter } from '#imports';
+import { useReaderStore } from '~/stores/reader';
+import { useAccountStore } from '~/stores/account';
+import { useResponsiveReaderMode } from '~/composables/useBreakpoint';
+import EpaperToolbar from '~/components/reader/EpaperToolbar.vue';
+import BookReader from '~/components/reader/BookReader.vue';
+import SideNavPrev from '~/components/reader/SideNavPrev.vue';
+import SideNavNext from '~/components/reader/SideNavNext.vue';
+import PulloutPanel from '~/components/reader/PulloutPanel.vue';
+import ArchiveModal from '~/components/reader/ArchiveModal.vue';
+import PaywallModal from '~/components/reader/PaywallModal.vue';
+
+const route = useRoute();
+const router = useRouter();
+const reader = useReaderStore();
+const account = useAccountStore();
+
+const bookReaderRef = ref<InstanceType<typeof BookReader> | null>(null);
+const openStory = ref<any | null>(null);
+const archiveOpen = ref(false);
+const paywallOpen = ref(false);
+
+const dateIso = computed(() => {
+  const parts = (route.params.date as string[] | undefined) || [];
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    return `${y}-${m}-${d}`;
+  }
+  return reader.todayIso();
+});
+
+// Responsive default: single-page on mobile/tablet, spread on desktop.
+useResponsiveReaderMode();
+
+async function openDate(iso: string) {
+  const [y, m, d] = iso.split('-');
+  await router.push(`/${y}/${m}/${d}`);
+}
+
+watch(dateIso, load, { immediate: true });
+
+async function load() {
+  await account.refresh();
+  await reader.loadEdition(dateIso.value);
+  archiveOpen.value = false;
+  paywallOpen.value = Boolean(reader.edition?.locked);
+}
+
+function handleTurn(direction: 'next' | 'prev') {
+  bookReaderRef.value?.animateTurn(direction);
+}
+function handleFirst() {
+  if (reader.edition?.pages?.[0]) reader.jumpTo(reader.edition.pages[0].pageNumber);
+}
+function handleLast() {
+  const pages = reader.edition?.pages || [];
+  if (pages.length) reader.jumpTo(pages[pages.length - 1].pageNumber);
+}
+function handleSelectArchiveDate(iso: string) {
+  openDate(iso);
+}
+
+function closePaywall() {
+  paywallOpen.value = false;
+}
+
+function onKeydown(e: KeyboardEvent) {
+  if (openStory.value) { if (e.key === 'Escape') openStory.value = null; return; }
+  if (paywallOpen.value) { if (e.key === 'Escape') closePaywall(); return; }
+  if (e.key === 'ArrowRight') { e.preventDefault(); handleTurn('next'); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); handleTurn('prev'); }
+  else if (e.key === 'Escape') { archiveOpen.value = false; }
+}
+onMounted(() => window.addEventListener('keydown', onKeydown));
+onUnmounted(() => window.removeEventListener('keydown', onKeydown));
+</script>
+
+<template>
+  <div class="min-h-screen flex flex-col items-center">
+    <EpaperToolbar
+      @turn="handleTurn"
+      @first="handleFirst"
+      @last="handleLast"
+      @open-archive="archiveOpen = true"
+    />
+
+    <div class="pt-[52px] w-full flex-1 flex flex-col items-center justify-center px-3 md:px-6 py-6">
+      <div v-if="reader.loading" class="text-neutral-400 font-mono text-sm">Loading edition…</div>
+      <div v-else class="flex items-center justify-center gap-2 md:gap-5 w-full">
+        <SideNavPrev @turn="handleTurn" />
+        <BookReader ref="bookReaderRef" @open-pullout="openStory = $event" />
+        <SideNavNext @turn="handleTurn" />
+      </div>
+      <p class="font-mono text-[10px] text-neutral-500 mt-4 text-center px-4">
+        Click a highlighted story to pull it out · use the side arrows, toolbar, or ← → keys to turn pages
+      </p>
+    </div>
+
+    <PulloutPanel :story="openStory" @close="openStory = null" />
+    <ArchiveModal :open="archiveOpen" @close="archiveOpen = false" @select-date="handleSelectArchiveDate" />
+    <PaywallModal
+      :open="paywallOpen"
+      :date-iso="dateIso"
+      :price="reader.edition?.price"
+      @close="closePaywall"
+    />
+  </div>
+</template>
