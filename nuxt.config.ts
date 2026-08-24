@@ -2,6 +2,14 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
   devtools: { enabled: true },
 
+  // Dev server port. For the built/production app (after `nuxt build`),
+  // Nitro's node-server preset automatically reads the same PORT env var at
+  // runtime, so setting PORT=3871 in .env covers both `nuxt dev` and the
+  // built server consistently — no separate prod config needed.
+  devServer: {
+    port: Number(process.env.PORT) || 3871
+  },
+
   modules: ['@pinia/nuxt', '@vueuse/nuxt', '@nuxtjs/tailwindcss'],
 
   // Components in components/reader/* are used by their bare filename
