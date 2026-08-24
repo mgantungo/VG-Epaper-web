@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 /**
  * Route: /[...date] — /, /2026/08/22, etc.
  * No date in the URL -> defaults to today, same rule as the middleware's
@@ -24,13 +24,13 @@ const router = useRouter();
 const reader = useReaderStore();
 const account = useAccountStore();
 
-const bookReaderRef = ref<InstanceType<typeof BookReader> | null>(null);
-const openStory = ref<any | null>(null);
+const bookReaderRef = ref(null);
+const openStory = ref(null);
 const archiveOpen = ref(false);
 const paywallOpen = ref(false);
 
 const dateIso = computed(() => {
-  const parts = (route.params.date as string[] | undefined) || [];
+  const parts = route.params.date || [];
   if (parts.length === 3) {
     const [y, m, d] = parts;
     return `${y}-${m}-${d}`;
@@ -41,7 +41,7 @@ const dateIso = computed(() => {
 // Responsive default: single-page on mobile/tablet, spread on desktop.
 useResponsiveReaderMode();
 
-async function openDate(iso: string) {
+async function openDate(iso) {
   const [y, m, d] = iso.split('-');
   await router.push(`/${y}/${m}/${d}`);
 }
@@ -55,7 +55,7 @@ async function load() {
   paywallOpen.value = Boolean(reader.edition?.locked);
 }
 
-function handleTurn(direction: 'next' | 'prev') {
+function handleTurn(direction) {
   bookReaderRef.value?.animateTurn(direction);
 }
 function handleFirst() {
@@ -65,7 +65,7 @@ function handleLast() {
   const pages = reader.edition?.pages || [];
   if (pages.length) reader.jumpTo(pages[pages.length - 1].pageNumber);
 }
-function handleSelectArchiveDate(iso: string) {
+function handleSelectArchiveDate(iso) {
   openDate(iso);
 }
 
@@ -73,7 +73,7 @@ function closePaywall() {
   paywallOpen.value = false;
 }
 
-function onKeydown(e: KeyboardEvent) {
+function onKeydown(e) {
   if (openStory.value) { if (e.key === 'Escape') openStory.value = null; return; }
   if (paywallOpen.value) { if (e.key === 'Escape') closePaywall(); return; }
   if (e.key === 'ArrowRight') { e.preventDefault(); handleTurn('next'); }

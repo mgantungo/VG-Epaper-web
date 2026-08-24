@@ -1,12 +1,9 @@
-<script setup lang="ts">
+<script setup>
 import { computed } from 'vue';
 import { useReaderStore } from '~/stores/reader';
 
 const reader = useReaderStore();
-const emit = defineEmits<{
-  (e: 'turn', direction: 'next' | 'prev'): void;
-  (e: 'first' | 'last' | 'open-archive'): void;
-}>();
+const emit = defineEmits(['turn', 'first', 'last', 'open-archive']);
 
 const pageIndicator = computed(() => {
   const v = reader.currentView;

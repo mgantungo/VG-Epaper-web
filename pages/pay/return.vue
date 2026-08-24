@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from '#imports';
 import { NuxtLink } from '#components';
@@ -7,9 +7,9 @@ import { useAccountStore } from '~/stores/account';
 const route = useRoute();
 const router = useRouter();
 const account = useAccountStore();
-const dateIso = route.query.date as string;
+const dateIso = route.query.date;
 
-const status = ref<'polling' | 'unlocked' | 'timeout'>('polling');
+const status = ref('polling'); // 'polling' | 'unlocked' | 'timeout'
 
 onMounted(async () => {
   const isToday = dateIso === new Date().toISOString().slice(0, 10);

@@ -1,8 +1,8 @@
-<script setup lang="ts">
+<script setup>
 import { useReaderStore } from '~/stores/reader';
 
 const reader = useReaderStore();
-const emit = defineEmits<{ (e: 'turn', direction: 'next' | 'prev'): void }>();
+const emit = defineEmits(['turn']);
 </script>
 
 <template>

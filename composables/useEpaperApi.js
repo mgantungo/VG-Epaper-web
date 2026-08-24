@@ -4,11 +4,11 @@ export function useEpaperApi() {
   const config = useRuntimeConfig();
   const token = useCookie('token'); // Strapi users-permissions JWT, set at login
 
-  function authHeaders(): Record<string, string> {
+  function authHeaders() {
     return token.value ? { Authorization: `Bearer ${token.value}` } : {};
   }
 
-  async function getEdition(dateIso: string) {
+  async function getEdition(dateIso) {
     return $fetch(`${config.public.middlewareUrl}/api/editions/${dateIso}`, {
       headers: authHeaders(),
       credentials: 'include'
@@ -16,7 +16,7 @@ export function useEpaperApi() {
   }
 
   async function getPurchasedDates() {
-    return $fetch<{ dates: string[] }>(`${config.public.middlewareUrl}/api/editions/me/purchased-dates`, {
+    return $fetch(`${config.public.middlewareUrl}/api/editions/me/purchased-dates`, {
       headers: authHeaders(),
       credentials: 'include'
     });
@@ -29,19 +29,16 @@ export function useEpaperApi() {
     });
   }
 
-  async function startCheckout(dateIso: string) {
-    return $fetch<{ checkoutUrl: string; purchaseId: string | null; amount: number; currency: string; kind: string }>(
-      `${config.public.middlewareUrl}/api/pay/checkout`,
-      {
-        method: 'POST',
-        headers: authHeaders(),
-        credentials: 'include',
-        body: { date: dateIso }
-      }
-    );
+  async function startCheckout(dateIso) {
+    return $fetch(`${config.public.middlewareUrl}/api/pay/checkout`, {
+      method: 'POST',
+      headers: authHeaders(),
+      credentials: 'include',
+      body: { date: dateIso }
+    });
   }
 
-  function pageImageSrc(dateIso: string, pageNumber: number) {
+  function pageImageSrc(dateIso, pageNumber) {
     // The middleware re-checks entitlement on every request to this path —
     // see apps/middleware/src/routes/editions.js — so this URL is safe to
     // put directly in an <img src>, it isn't a bypassable "unlocked" link.

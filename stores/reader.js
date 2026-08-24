@@ -2,32 +2,22 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useEpaperApi } from '~/composables/useEpaperApi';
 
-type PageData = {
-  pageNumber: number;
-  section?: string;
-  imageUrl?: string;
-  stories?: Array<{
-    id: number; top: number; left: number; width: number; height: number;
-    kicker?: string; headline: string; byline?: string; teaser?: string; body?: string;
-  }>;
-};
-
-type EditionResponse = {
-  date: string;
-  locked: boolean;
-  pageCount: number;
-  volume?: string;
-  issueNumber?: string;
-  coverPrice?: number;
-  currency?: string;
-  price?: { amount: number; currency: string; kind: 'subscription' | 'archive_purchase' };
-  pages: PageData[];
-};
+/**
+ * Shape of one page as returned by GET /api/editions/:date, for reference
+ * (not enforced — this is a plain-JS project now):
+ *   { pageNumber, section?, imageUrl?, stories?: [{ id, top, left, width,
+ *     height, kicker?, headline, byline?, teaser?, body? }] }
+ *
+ * Shape of the edition response itself:
+ *   { date, locked, pageCount, volume?, issueNumber?, coverPrice?, currency?,
+ *     price?: { amount, currency, kind: 'subscription' | 'archive_purchase' },
+ *     pages: [...] }
+ */
 
 export const useReaderStore = defineStore('reader', () => {
   const currentDate = ref(todayIso());
-  const edition = ref<EditionResponse | null>(null);
-  const viewMode = ref<'single' | 'double'>('double');
+  const edition = ref(null);
+  const viewMode = ref('double'); // 'single' | 'double'
   const viewModeManuallySet = ref(false); // stops useResponsiveReaderMode fighting a manual toolbar choice
   const currentIndex = ref(0);
   const animating = ref(false);
@@ -42,7 +32,7 @@ export const useReaderStore = defineStore('reader', () => {
   const doubleViews = computed(() => {
     const pages = edition.value?.pages || [];
     if (!pages.length) return [];
-    const views: Array<{ left: PageData | null; right: PageData | null }> = [];
+    const views = [];
     views.push({ left: null, right: pages[0] });
     let i = 1;
     while (i < pages.length - 1) {
@@ -53,7 +43,7 @@ export const useReaderStore = defineStore('reader', () => {
     return views;
   });
   const singleViews = computed(() =>
-    (edition.value?.pages || []).map(p => ({ left: null as PageData | null, right: p }))
+    (edition.value?.pages || []).map(p => ({ left: null, right: p }))
   );
   const activeViews = computed(() => (viewMode.value === 'double' ? doubleViews.value : singleViews.value));
   const currentView = computed(() => activeViews.value[currentIndex.value] || { left: null, right: null });
@@ -61,19 +51,19 @@ export const useReaderStore = defineStore('reader', () => {
   const atStart = computed(() => currentIndex.value === 0);
   const atEnd = computed(() => currentIndex.value === Math.max(activeViews.value.length - 1, 0));
 
-  async function loadEdition(dateIso: string) {
+  async function loadEdition(dateIso) {
     loading.value = true;
     currentDate.value = dateIso;
     currentIndex.value = 0;
     try {
       const api = useEpaperApi();
-      edition.value = await api.getEdition(dateIso) as EditionResponse;
+      edition.value = await api.getEdition(dateIso);
     } finally {
       loading.value = false;
     }
   }
 
-  function setViewMode(mode: 'single' | 'double', manual = false) {
+  function setViewMode(mode, manual = false) {
     if (manual) viewModeManuallySet.value = true;
     if (mode === viewMode.value) return;
     // Preserve roughly where the reader was when switching spread <-> single.
@@ -85,17 +75,17 @@ export const useReaderStore = defineStore('reader', () => {
     }
   }
 
-  function currentPrimaryPageNumber(): number | null {
+  function currentPrimaryPageNumber() {
     const v = currentView.value;
     if (viewMode.value === 'single') return v.right?.pageNumber ?? null;
     return v.right?.pageNumber ?? v.left?.pageNumber ?? null;
   }
-  function indexForPageNumber(mode: 'single' | 'double', num: number): number {
+  function indexForPageNumber(mode, num) {
     const views = mode === 'double' ? doubleViews.value : singleViews.value;
     return views.findIndex(v => v.left?.pageNumber === num || v.right?.pageNumber === num);
   }
 
-  function turn(direction: 'next' | 'prev') {
+  function turn(direction) {
     if (animating.value) return;
     const delta = direction === 'next' ? 1 : -1;
     const newIndex = currentIndex.value + delta;
@@ -111,7 +101,7 @@ export const useReaderStore = defineStore('reader', () => {
     }, 620); // keep in sync with BookReader.vue's transition duration
   }
 
-  function jumpTo(pageNumber: number) {
+  function jumpTo(pageNumber) {
     if (animating.value) return;
     const idx = indexForPageNumber(viewMode.value, pageNumber);
     if (idx >= 0) currentIndex.value = idx;

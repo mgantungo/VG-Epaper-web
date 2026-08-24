@@ -1,9 +1,9 @@
-<script setup lang="ts">
+<script setup>
 import { ref, computed } from 'vue';
 import { useAccountStore } from '~/stores/account';
 
-const props = defineProps<{ open: boolean }>();
-const emit = defineEmits<{ (e: 'close'): void; (e: 'select-date', dateIso: string): void }>();
+const props = defineProps({ open: { type: Boolean, required: true } });
+const emit = defineEmits(['close', 'select-date']);
 
 const account = useAccountStore();
 const today = new Date();
@@ -17,23 +17,23 @@ const daysInMonth = computed(() => new Date(selectedYear.value, calMonth.value +
 const startOffset = computed(() => (new Date(selectedYear.value, calMonth.value, 1).getDay() + 6) % 7);
 const lastAvailableMonth = computed(() => (selectedYear.value === today.getFullYear() ? today.getMonth() : 11));
 
-function dateIsoFor(day: number) {
+function dateIsoFor(day) {
   return `${selectedYear.value}-${String(calMonth.value + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
-function isFuture(day: number) {
+function isFuture(day) {
   return new Date(selectedYear.value, calMonth.value, day) > today;
 }
-function isUnlocked(day: number) {
+function isUnlocked(day) {
   const iso = dateIsoFor(day);
   const isToday = iso === today.toISOString().slice(0, 10);
   return isToday ? account.subscriptionActive : account.hasPurchased(iso);
 }
 
-function pickYear(y: number) {
+function pickYear(y) {
   selectedYear.value = y;
   calMonth.value = y === today.getFullYear() ? today.getMonth() : 11;
 }
-function selectDay(day: number) {
+function selectDay(day) {
   if (isFuture(day)) return;
   emit('select-date', dateIsoFor(day));
 }

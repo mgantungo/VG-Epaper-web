@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 /**
  * Renders the current spread/single page and drives the 3D flip transition.
  * Ported from the mockup's vanilla-JS turn()/renderStatic() — the geometry
@@ -11,18 +11,18 @@ import PageFace from './PageFace.vue';
 
 const reader = useReaderStore();
 
-const bookEl = ref<HTMLElement | null>(null);
-const flipEl = ref<HTMLElement | null>(null);
-const flipFace = ref<{ front: any; back: any } | null>(null);
-const flipDirection = ref<'next' | 'prev' | null>(null);
+const bookEl = ref(null);
+const flipEl = ref(null);
+const flipFace = ref(null); // { front, back } | null
+const flipDirection = ref(null); // 'next' | 'prev' | null
 
-const emit = defineEmits<{ (e: 'open-pullout', story: any): void }>();
+const emit = defineEmits(['open-pullout']);
 
-function pageLocked(page: any) {
+function pageLocked(page) {
   return reader.edition?.locked && page; // locked editions never carry imageUrl/stories from the API
 }
 
-async function animateTurn(direction: 'next' | 'prev') {
+async function animateTurn(direction) {
   if (reader.animating) return;
   const delta = direction === 'next' ? 1 : -1;
   const newIndex = reader.currentIndex + delta;
@@ -69,10 +69,10 @@ async function animateTurn(direction: 'next' | 'prev') {
 defineExpose({ animateTurn });
 
 // ---- page-turn sound (identical synth approach to the mockup) -----------
-let audioCtx: AudioContext | null = null;
+let audioCtx = null;
 function playPageSound() {
   try {
-    audioCtx ||= new (window.AudioContext || (window as any).webkitAudioContext)();
+    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
     const dur = 0.5;
     const bufferSize = Math.floor(audioCtx.sampleRate * dur);

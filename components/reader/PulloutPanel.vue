@@ -1,6 +1,6 @@
-<script setup lang="ts">
-const props = defineProps<{ story: any | null }>();
-const emit = defineEmits<{ (e: 'close'): void }>();
+<script setup>
+const props = defineProps({ story: { type: Object, default: null } });
+const emit = defineEmits(['close']);
 </script>
 
 <template>

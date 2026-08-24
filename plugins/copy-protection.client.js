@@ -16,7 +16,7 @@ export default defineNuxtPlugin(() => {
   document.addEventListener('contextmenu', e => e.preventDefault());
   document.addEventListener('selectstart', e => {
     // allow selection inside the pullout's article body — same exception as the mockup
-    if ((e.target as HTMLElement)?.closest?.('.select-text')) return;
+    if (e.target?.closest?.('.select-text')) return;
     e.preventDefault();
   });
   document.addEventListener('dragstart', e => e.preventDefault());

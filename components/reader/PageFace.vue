@@ -1,12 +1,12 @@
-<script setup lang="ts">
+<script setup>
 import { computed } from 'vue';
 import { useRuntimeConfig } from '#imports';
 
-const props = defineProps<{
-  page: { pageNumber: number; imageUrl?: string; stories?: any[] };
-  locked?: boolean;
-}>();
-const emit = defineEmits<{ (e: 'open-pullout', story: any): void }>();
+const props = defineProps({
+  page: { type: Object, required: true },
+  locked: { type: Boolean, default: false }
+});
+const emit = defineEmits(['open-pullout']);
 
 const config = useRuntimeConfig();
 const fullImageUrl = computed(() =>

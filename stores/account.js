@@ -4,14 +4,14 @@ import { useEpaperApi } from '~/composables/useEpaperApi';
 
 export const useAccountStore = defineStore('account', () => {
   const subscriptionActive = ref(false);
-  const subscriptionExpiresAt = ref<string | null>(null);
-  const purchasedDates = ref<string[]>([]);
+  const subscriptionExpiresAt = ref(null);
+  const purchasedDates = ref([]);
   const loaded = ref(false);
 
   async function refresh() {
     const api = useEpaperApi();
     try {
-      const me = await api.getAccount() as any;
+      const me = await api.getAccount();
       subscriptionActive.value = me.subscriptionActive;
       subscriptionExpiresAt.value = me.subscriptionExpiresAt;
       purchasedDates.value = me.purchasedDates;
@@ -24,7 +24,7 @@ export const useAccountStore = defineStore('account', () => {
     }
   }
 
-  function hasPurchased(dateIso: string) {
+  function hasPurchased(dateIso) {
     return purchasedDates.value.includes(dateIso);
   }
 

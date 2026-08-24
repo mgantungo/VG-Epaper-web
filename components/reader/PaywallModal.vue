@@ -1,16 +1,20 @@
-<script setup lang="ts">
+<script setup>
 import { ref, computed } from 'vue';
 import { useEpaperApi } from '~/composables/useEpaperApi';
 import { useReaderStore } from '~/stores/reader';
 
-const props = defineProps<{ open: boolean; dateIso: string; price?: { amount: number; currency: string; kind: string } | null }>();
-const emit = defineEmits<{ (e: 'close'): void }>();
+const props = defineProps({
+  open: { type: Boolean, required: true },
+  dateIso: { type: String, required: true },
+  price: { type: Object, default: null } // { amount, currency, kind }
+});
+const emit = defineEmits(['close']);
 
 const api = useEpaperApi();
 const reader = useReaderStore();
 const isToday = computed(() => props.dateIso === reader.todayIso());
 const submitting = ref(false);
-const error = ref<string | null>(null);
+const error = ref(null);
 
 async function continueToPayment() {
   submitting.value = true;
@@ -21,7 +25,7 @@ async function continueToPayment() {
     // POST /api/pay/webhook on completion (server-to-server), and the user is
     // sent back to /pay/return, which polls until the webhook has landed.
     window.location.href = `${res.checkoutUrl}&returnTo=${encodeURIComponent(`${window.location.origin}/pay/return?date=${props.dateIso}`)}`;
-  } catch (e: any) {
+  } catch (e) {
     error.value = e?.data?.error || 'Could not start checkout. Please try again.';
     submitting.value = false;
   }
