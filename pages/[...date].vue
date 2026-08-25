@@ -109,6 +109,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
     <div class="pt-[52px] w-full flex-1 flex flex-col items-center justify-center px-3 md:px-6 py-6">
       <div v-if="reader.loading" class="text-neutral-400 font-mono text-sm">Loading edition…</div>
+      <div v-else-if="reader.loadError" class="text-neutral-400 font-mono text-sm text-center px-6">
+        <template v-if="reader.loadError === 'not_found'">No edition has been published for {{ dateIso }} yet.</template>
+        <template v-else>Something went wrong loading this edition. Please try again.</template>
+      </div>
       <div v-else class="flex items-center justify-center gap-2 md:gap-5 w-full">
         <SideNavPrev @turn="handleTurn" />
         <BookReader ref="bookReaderRef" @open-pullout="openStory = $event" />

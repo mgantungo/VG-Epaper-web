@@ -31,6 +31,7 @@ export const useReaderStore = defineStore('reader', () => {
   const currentIndex = ref(0);
   const animating = ref(false);
   const loading = ref(true); // starts true: the initial load now only ever happens client-side (see pages/[...date].vue), so the server-rendered page shows "Loading edition…" instead of a blank book shell until that first client fetch completes
+  const loadError = ref(null); // null | 'not_found' | 'error' — see loadEdition()
 
   function todayIso() {
     return new Date().toISOString().slice(0, 10);
@@ -62,10 +63,21 @@ export const useReaderStore = defineStore('reader', () => {
 
   async function loadEdition(dateIso) {
     loading.value = true;
+    loadError.value = null;
     currentDate.value = dateIso;
     currentIndex.value = 0;
     try {
       edition.value = await api.getEdition(dateIso);
+    } catch (err) {
+      // Critical: clear out whatever the PREVIOUS date's edition was. This
+      // is the actual fix for "the archive shows the same copy for every
+      // date" — that was never a caching bug, it was this catch block
+      // simply not existing, so a failed fetch (e.g. 404, nothing
+      // published for that date) left the last successful edition sitting
+      // in state indefinitely while the UI kept rendering it.
+      edition.value = null;
+      const status = err?.response?.status ?? err?.statusCode ?? err?.status;
+      loadError.value = status === 404 ? 'not_found' : 'error';
     } finally {
       loading.value = false;
     }
@@ -116,7 +128,7 @@ export const useReaderStore = defineStore('reader', () => {
   }
 
   return {
-    currentDate, edition, viewMode, viewModeManuallySet, currentIndex, animating, loading,
+    currentDate, edition, viewMode, viewModeManuallySet, currentIndex, animating, loading, loadError,
     doubleViews, singleViews, activeViews, currentView, atStart, atEnd,
     loadEdition, setViewMode, turn, jumpTo, todayIso
   };
