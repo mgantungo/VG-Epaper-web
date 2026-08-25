@@ -32,6 +32,8 @@ export const useReaderStore = defineStore('reader', () => {
   const animating = ref(false);
   const loading = ref(true); // starts true: the initial load now only ever happens client-side (see pages/[...date].vue), so the server-rendered page shows "Loading edition…" instead of a blank book shell until that first client fetch completes
   const loadError = ref(null); // null | 'not_found' | 'error' — see loadEdition()
+  const zoom = ref(1);
+  const soundEnabled = ref(true);
 
   function todayIso() {
     return new Date().toISOString().slice(0, 10);
@@ -127,9 +129,20 @@ export const useReaderStore = defineStore('reader', () => {
     if (idx >= 0) currentIndex.value = idx;
   }
 
+  function setZoom(z) {
+    zoom.value = Math.max(0.7, Math.min(1.5, z));
+  }
+  function resetZoom() {
+    zoom.value = 1;
+  }
+  function toggleSound() {
+    soundEnabled.value = !soundEnabled.value;
+  }
+
   return {
     currentDate, edition, viewMode, viewModeManuallySet, currentIndex, animating, loading, loadError,
+    zoom, soundEnabled,
     doubleViews, singleViews, activeViews, currentView, atStart, atEnd,
-    loadEdition, setViewMode, turn, jumpTo, todayIso
+    loadEdition, setViewMode, turn, jumpTo, todayIso, setZoom, resetZoom, toggleSound
   };
 });

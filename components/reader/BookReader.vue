@@ -71,6 +71,7 @@ defineExpose({ animateTurn });
 // ---- page-turn sound (identical synth approach to the mockup) -----------
 let audioCtx = null;
 function playPageSound() {
+  if (!reader.soundEnabled) return;
   try {
     audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -102,7 +103,7 @@ function playPageSound() {
 </script>
 
 <template>
-  <div class="book-wrap" :class="{ 'single-mode': reader.viewMode === 'single', 'paywall-preview-blur': reader.edition?.locked }">
+  <div class="book-wrap" :class="{ 'single-mode': reader.viewMode === 'single', 'paywall-preview-blur': reader.edition?.locked }" :style="{ transform: `scale(${reader.zoom})` }">
     <div ref="bookEl" class="book" tabindex="0" aria-label="Newspaper reader. Use left and right arrow keys to turn pages.">
       <div class="page-slot left" v-show="!!reader.currentView.left">
         <PageFace v-if="reader.currentView.left" :page="reader.currentView.left" :locked="pageLocked(reader.currentView.left)" @open-pullout="emit('open-pullout', $event)" />

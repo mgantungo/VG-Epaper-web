@@ -18,6 +18,8 @@ import SideNavNext from '~/components/reader/SideNavNext.vue';
 import PulloutPanel from '~/components/reader/PulloutPanel.vue';
 import ArchiveModal from '~/components/reader/ArchiveModal.vue';
 import PaywallModal from '~/components/reader/PaywallModal.vue';
+import SearchOverlay from '~/components/reader/SearchOverlay.vue';
+import ContentsDrawer from '~/components/reader/ContentsDrawer.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -28,6 +30,8 @@ const bookReaderRef = ref(null);
 const openStory = ref(null);
 const archiveOpen = ref(false);
 const paywallOpen = ref(false);
+const searchOpen = ref(false);
+const contentsOpen = ref(false);
 
 const dateIso = computed(() => {
   const parts = route.params.date || [];
@@ -89,7 +93,7 @@ function onKeydown(e) {
   if (paywallOpen.value) { if (e.key === 'Escape') closePaywall(); return; }
   if (e.key === 'ArrowRight') { e.preventDefault(); handleTurn('next'); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); handleTurn('prev'); }
-  else if (e.key === 'Escape') { archiveOpen.value = false; }
+  else if (e.key === 'Escape') { archiveOpen.value = false; searchOpen.value = false; contentsOpen.value = false; }
 }
 onMounted(() => {
   load();
@@ -105,6 +109,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
       @first="handleFirst"
       @last="handleLast"
       @open-archive="archiveOpen = true"
+      @open-search="searchOpen = true"
+      @open-contents="contentsOpen = true"
     />
 
     <div class="pt-[52px] w-full flex-1 flex flex-col items-center justify-center px-3 md:px-6 py-6">
@@ -125,6 +131,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
     <PulloutPanel :story="openStory" @close="openStory = null" />
     <ArchiveModal :open="archiveOpen" @close="archiveOpen = false" @select-date="handleSelectArchiveDate" />
+    <SearchOverlay :open="searchOpen" @close="searchOpen = false" @open-pullout="openStory = $event" />
+    <ContentsDrawer :open="contentsOpen" @close="contentsOpen = false" />
     <PaywallModal
       :open="paywallOpen"
       :date-iso="dateIso"
