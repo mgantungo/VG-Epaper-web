@@ -88,16 +88,20 @@ export function useEpaperApi() {
     });
   }
 
-  function pageImageSrc(dateIso, pageNumber) {
-    // The middleware re-checks entitlement on every request to this path —
-    // see apps/middleware/src/routes/editions.js — so this URL is safe to
-    // put directly in an <img src>, it isn't a bypassable "unlocked" link.
-    // Note: unlike the calls above, a plain <img> tag can't be retried via
-    // authedFetch — if the access token expires mid-session, images will
-    // 402 until the next page navigation re-authenticates. Acceptable for
-    // now; revisit if that proves disruptive in practice.
-    return `${config.public.middlewareUrl}/api/editions/${dateIso}/pages/${String(pageNumber).padStart(2, '0')}.jpg`;
+  /**
+   * A page image is entitlement-gated, which a plain <img src="..."> can't
+   * authenticate for two reasons: it can't attach an Authorization header
+   * at all, AND the access-token cookie is scoped to this frontend's own
+   * domain (set via a plain client-side useCookie), never the middleware's
+   * separate API domain — so even the cookie fallback in attachUser never
+   * had anything to receive. Fetching the bytes explicitly through
+   * authedFetch (same 401-retry-on-expiry handling as every other call)
+   * and handing the component back a Blob is the actual fix; the caller
+   * turns that into an object URL for the <img> tag. See PageFace.vue.
+   */
+  async function fetchImageBlob(relativeUrl) {
+    return authedFetch(`${config.public.middlewareUrl}${relativeUrl}`, { responseType: 'blob' });
   }
 
-  return { getEdition, getPurchasedDates, getAccount, startCheckout, login, register, pageImageSrc };
+  return { getEdition, getPurchasedDates, getAccount, startCheckout, login, register, fetchImageBlob };
 }
