@@ -35,13 +35,16 @@ export function useEpaperApi() {
       const status = err?.response?.status ?? err?.statusCode ?? err?.status;
       if (status !== 401 || !token.value) throw err;
 
+      console.log(`[api] ${url} -> 401, attempting token refresh…`);
       try {
         const refreshed = await $fetch(`${config.public.middlewareUrl}/api/auth/refresh`, {
           method: 'POST',
           credentials: 'include'
         });
         token.value = refreshed.jwt;
-      } catch {
+        console.log('[api] refresh succeeded, retrying original request');
+      } catch (refreshErr) {
+        console.warn('[api] refresh FAILED — treating as signed out:', refreshErr?.data?.error || refreshErr?.message);
         token.value = null; // refresh token's gone too — genuinely signed out now
         throw err; // surface the ORIGINAL 401, not the refresh failure
       }
