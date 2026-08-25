@@ -38,6 +38,22 @@ export function useEpaperApi() {
     });
   }
 
+  async function login(identifier, password) {
+    return $fetch(`${config.public.middlewareUrl}/api/auth/login`, {
+      method: 'POST',
+      credentials: 'include',
+      body: { identifier, password }
+    });
+  }
+
+  async function register(username, email, password) {
+    return $fetch(`${config.public.middlewareUrl}/api/auth/register`, {
+      method: 'POST',
+      credentials: 'include',
+      body: { username, email, password }
+    });
+  }
+
   function pageImageSrc(dateIso, pageNumber) {
     // The middleware re-checks entitlement on every request to this path —
     // see apps/middleware/src/routes/editions.js — so this URL is safe to
@@ -45,5 +61,5 @@ export function useEpaperApi() {
     return `${config.public.middlewareUrl}/api/editions/${dateIso}/pages/${String(pageNumber).padStart(2, '0')}.jpg`;
   }
 
-  return { getEdition, getPurchasedDates, getAccount, startCheckout, pageImageSrc };
+  return { getEdition, getPurchasedDates, getAccount, startCheckout, login, register, pageImageSrc };
 }

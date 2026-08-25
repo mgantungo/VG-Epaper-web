@@ -1,8 +1,13 @@
 <script setup>
 import { computed } from 'vue';
+import { useRoute } from '#imports';
+import { NuxtLink } from '#components';
 import { useReaderStore } from '~/stores/reader';
+import { useAccountStore } from '~/stores/account';
 
+const route = useRoute();
 const reader = useReaderStore();
+const account = useAccountStore();
 const emit = defineEmits(['turn', 'first', 'last', 'open-archive']);
 
 const pageIndicator = computed(() => {
@@ -53,6 +58,16 @@ const pageIndicator = computed(() => {
         class="flex items-center gap-2 h-[34px] px-3 rounded-md border border-neutral-600 text-white text-[11.5px] font-mono hover:bg-neutral-700"
         @click="emit('open-archive')"
       >📦 Archive</button>
+
+      <NuxtLink
+        v-if="!account.loggedIn"
+        :to="{ path: '/login', query: { redirect: route.fullPath } }"
+        class="flex items-center h-[34px] px-3 rounded-md border border-neutral-600 text-white text-[11.5px] font-mono hover:bg-neutral-700"
+      >Sign in</NuxtLink>
+      <div v-else class="flex items-center gap-2 h-[34px] px-3 rounded-md border border-neutral-600 text-[11.5px] font-mono">
+        <span class="text-neutral-300 truncate max-w-[120px]">{{ account.user?.email || 'Account' }}</span>
+        <button class="text-neutral-500 hover:text-white" @click="account.logout()">Sign out</button>
+      </div>
     </div>
   </div>
 </template>

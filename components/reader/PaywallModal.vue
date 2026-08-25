@@ -1,7 +1,9 @@
 <script setup>
 import { ref, computed } from 'vue';
+import { useRoute, useRouter } from '#imports';
 import { useEpaperApi } from '~/composables/useEpaperApi';
 import { useReaderStore } from '~/stores/reader';
+import { useAccountStore } from '~/stores/account';
 
 const props = defineProps({
   open: { type: Boolean, required: true },
@@ -10,13 +12,24 @@ const props = defineProps({
 });
 const emit = defineEmits(['close']);
 
+const route = useRoute();
+const router = useRouter();
 const api = useEpaperApi();
 const reader = useReaderStore();
+const account = useAccountStore();
 const isToday = computed(() => props.dateIso === reader.todayIso());
 const submitting = ref(false);
 const error = ref(null);
 
 async function continueToPayment() {
+  if (!account.loggedIn) {
+    // Nothing to check out as an anonymous reader — send them to sign in
+    // first, then straight back to this exact page (and this paywall will
+    // re-open automatically here, since it's driven by the same locked
+    // edition state) rather than surfacing a confusing 401 from checkout.
+    router.push({ path: '/login', query: { redirect: route.fullPath } });
+    return;
+  }
   submitting.value = true;
   error.value = null;
   try {
@@ -53,7 +66,7 @@ async function continueToPayment() {
         class="w-full bg-neutral-900 text-white rounded-lg py-3 font-mono text-sm disabled:opacity-60"
         :disabled="submitting"
         @click="continueToPayment"
-      >{{ submitting ? 'Redirecting to payment…' : (isToday ? 'Subscribe now' : 'Pay & unlock this edition') }}</button>
+      >{{ submitting ? 'Redirecting to payment…' : (!account.loggedIn ? 'Sign in to continue' : (isToday ? 'Subscribe now' : 'Pay & unlock this edition')) }}</button>
       <p v-if="error" class="text-red-600 text-xs mt-3">{{ error }}</p>
       <p class="text-[10px] text-neutral-400 mt-4">You'll be taken to our payment provider to complete this securely.</p>
     </div>
