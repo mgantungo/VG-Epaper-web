@@ -15,6 +15,15 @@ import { useEpaperApi } from '~/composables/useEpaperApi';
  */
 
 export const useReaderStore = defineStore('reader', () => {
+  // Captured once, synchronously, at store creation — which always happens
+  // inside a component's valid setup context (the first `useReaderStore()`
+  // call, e.g. in pages/[...date].vue). Re-calling useEpaperApi() (and the
+  // useRuntimeConfig()/useCookie() it wraps) *inside* an async action after
+  // that action has been invoked post-await is what triggers Nuxt's
+  // NUXT_E1001 "composable called outside context" warning — capturing it
+  // once here and reusing it below avoids that entirely.
+  const api = useEpaperApi();
+
   const currentDate = ref(todayIso());
   const edition = ref(null);
   const viewMode = ref('double'); // 'single' | 'double'
@@ -56,7 +65,6 @@ export const useReaderStore = defineStore('reader', () => {
     currentDate.value = dateIso;
     currentIndex.value = 0;
     try {
-      const api = useEpaperApi();
       edition.value = await api.getEdition(dateIso);
     } finally {
       loading.value = false;

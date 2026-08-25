@@ -26,7 +26,7 @@ export default defineNuxtConfig({
   // see apps/middleware/README.md for why.
   runtimeConfig: {
     public: {
-      middlewareUrl: process.env.NUXT_PUBLIC_MIDDLEWARE_URL || 'http://localhost:4161'
+      middlewareUrl: process.env.NUXT_PUBLIC_MIDDLEWARE_URL || 'https://epapersapi.visiongroup.co.ug'
     }
   },
 

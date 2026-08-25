@@ -39,3 +39,4 @@ export { useEpaperApi } from '../composables/useEpaperApi';
 export { useAccountStore } from '../stores/account';
 export { useReaderStore } from '../stores/reader';
 export { defineStore, acceptHMRUpdate, usePinia, storeToRefs } from '../node_modules/@pinia/nuxt/dist/runtime/composables';
+export { useNuxtDevTools } from '../node_modules/@nuxt/devtools/dist/runtime/use-nuxt-devtools';

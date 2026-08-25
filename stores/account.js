@@ -3,13 +3,16 @@ import { ref } from 'vue';
 import { useEpaperApi } from '~/composables/useEpaperApi';
 
 export const useAccountStore = defineStore('account', () => {
+  // Same fix as stores/reader.js — capture once at store creation (valid
+  // synchronous context), not fresh inside the async action below.
+  const api = useEpaperApi();
+
   const subscriptionActive = ref(false);
   const subscriptionExpiresAt = ref(null);
   const purchasedDates = ref([]);
   const loaded = ref(false);
 
   async function refresh() {
-    const api = useEpaperApi();
     try {
       const me = await api.getAccount();
       subscriptionActive.value = me.subscriptionActive;
