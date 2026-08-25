@@ -104,10 +104,10 @@ function playPageSound() {
 <template>
   <div class="book-wrap" :class="{ 'single-mode': reader.viewMode === 'single', 'paywall-preview-blur': reader.edition?.locked }">
     <div ref="bookEl" class="book" tabindex="0" aria-label="Newspaper reader. Use left and right arrow keys to turn pages.">
-      <div class="page-slot left" v-show="reader.viewMode === 'double'">
+      <div class="page-slot left" v-show="!!reader.currentView.left">
         <PageFace v-if="reader.currentView.left" :page="reader.currentView.left" :locked="pageLocked(reader.currentView.left)" @open-pullout="emit('open-pullout', $event)" />
       </div>
-      <div class="page-slot right">
+      <div class="page-slot right" v-show="!!reader.currentView.right">
         <PageFace v-if="reader.currentView.right" :page="reader.currentView.right" :locked="pageLocked(reader.currentView.right)" @open-pullout="emit('open-pullout', $event)" />
       </div>
 
