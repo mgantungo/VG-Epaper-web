@@ -46,7 +46,18 @@ async function openDate(iso) {
   await router.push(`/${y}/${m}/${d}`);
 }
 
-watch(dateIso, load, { immediate: true });
+// Account/entitlement state depends entirely on browser-only mechanisms —
+// the access-token cookie and Strapi's httpOnly refresh cookie — neither of
+// which a plain server-side fetch() automatically carries the way a real
+// browser request does. Running this during SSR meant every initial page
+// load silently 401'd server-side with no cookie attached at all, which is
+// what was actually behind the repeated "Sign in required" errors — not
+// anything wrong with the refresh logic itself. So: no `immediate: true`
+// here (that would still fire during SSR); the first load happens in
+// onMounted below instead, which never runs on the server, only once
+// hydrated in the real browser. Subsequent client-side route changes (e.g.
+// picking an archive date) still go through this watcher normally.
+watch(dateIso, load);
 
 async function load() {
   await account.refresh();
@@ -80,7 +91,10 @@ function onKeydown(e) {
   else if (e.key === 'ArrowLeft') { e.preventDefault(); handleTurn('prev'); }
   else if (e.key === 'Escape') { archiveOpen.value = false; }
 }
-onMounted(() => window.addEventListener('keydown', onKeydown));
+onMounted(() => {
+  load();
+  window.addEventListener('keydown', onKeydown);
+});
 onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 </script>
 

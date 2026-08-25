@@ -30,7 +30,7 @@ export const useReaderStore = defineStore('reader', () => {
   const viewModeManuallySet = ref(false); // stops useResponsiveReaderMode fighting a manual toolbar choice
   const currentIndex = ref(0);
   const animating = ref(false);
-  const loading = ref(false);
+  const loading = ref(true); // starts true: the initial load now only ever happens client-side (see pages/[...date].vue), so the server-rendered page shows "Loading edition…" instead of a blank book shell until that first client fetch completes
 
   function todayIso() {
     return new Date().toISOString().slice(0, 10);
