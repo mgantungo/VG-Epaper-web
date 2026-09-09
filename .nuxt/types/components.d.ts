@@ -15,11 +15,14 @@ type LazyComponent<T> = DefineComponent<HydrationStrategies, {}, {}, {}, {}, {},
 
 interface _GlobalComponents {
   ArchiveModal: typeof import("../../components/reader/ArchiveModal.vue")['default']
+  "BookReader copy": typeof import("../../components/reader/BookReader copy.vue")['default']
   BookReader: typeof import("../../components/reader/BookReader.vue")['default']
+  ContentsDrawer: typeof import("../../components/reader/ContentsDrawer.vue")['default']
   EpaperToolbar: typeof import("../../components/reader/EpaperToolbar.vue")['default']
   PageFace: typeof import("../../components/reader/PageFace.vue")['default']
   PaywallModal: typeof import("../../components/reader/PaywallModal.vue")['default']
   PulloutPanel: typeof import("../../components/reader/PulloutPanel.vue")['default']
+  SearchOverlay: typeof import("../../components/reader/SearchOverlay.vue")['default']
   SideNavNext: typeof import("../../components/reader/SideNavNext.vue")['default']
   SideNavPrev: typeof import("../../components/reader/SideNavPrev.vue")['default']
   NuxtWelcome: typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']
@@ -47,11 +50,14 @@ interface _GlobalComponents {
   Body: typeof import("../../node_modules/nuxt/dist/head/runtime/components")['Body']
   NuxtIsland: typeof import("../../node_modules/nuxt/dist/app/components/nuxt-island")['default']
   LazyArchiveModal: LazyComponent<typeof import("../../components/reader/ArchiveModal.vue")['default']>
+  "LazyBookReader copy": LazyComponent<typeof import("../../components/reader/BookReader copy.vue")['default']>
   LazyBookReader: LazyComponent<typeof import("../../components/reader/BookReader.vue")['default']>
+  LazyContentsDrawer: LazyComponent<typeof import("../../components/reader/ContentsDrawer.vue")['default']>
   LazyEpaperToolbar: LazyComponent<typeof import("../../components/reader/EpaperToolbar.vue")['default']>
   LazyPageFace: LazyComponent<typeof import("../../components/reader/PageFace.vue")['default']>
   LazyPaywallModal: LazyComponent<typeof import("../../components/reader/PaywallModal.vue")['default']>
   LazyPulloutPanel: LazyComponent<typeof import("../../components/reader/PulloutPanel.vue")['default']>
+  LazySearchOverlay: LazyComponent<typeof import("../../components/reader/SearchOverlay.vue")['default']>
   LazySideNavNext: LazyComponent<typeof import("../../components/reader/SideNavNext.vue")['default']>
   LazySideNavPrev: LazyComponent<typeof import("../../components/reader/SideNavPrev.vue")['default']>
   LazyNuxtWelcome: LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']>

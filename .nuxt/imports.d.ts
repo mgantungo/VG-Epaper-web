@@ -36,6 +36,7 @@ export { definePageMeta, PageMeta } from '#app/composables/pages';
 export { defineLazyHydrationComponent } from '#app/composables/lazy-hydration';
 export { useResponsiveReaderMode } from '../composables/useBreakpoint';
 export { useEpaperApi } from '../composables/useEpaperApi';
+export { useToolbarBreakpoint } from '../composables/useToolbarBreakpoint';
 export { useAccountStore } from '../stores/account';
 export { useReaderStore } from '../stores/reader';
 export { defineStore, acceptHMRUpdate, usePinia, storeToRefs } from '../node_modules/@pinia/nuxt/dist/runtime/composables';

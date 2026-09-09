@@ -4,6 +4,38 @@
  * Ported from the mockup's vanilla-JS turn()/renderStatic() — the geometry
  * and timing are unchanged, just expressed as Vue-managed DOM refs instead of
  * innerHTML string-building.
+ *
+ * CURRENT STATE: this is still the original simple flip — a single flat
+ * rigid rotateY, no paper curl, no corner "dog-ear" peel, no dynamic
+ * shading. A much more refined version (two-panel curl that bends the
+ * outer half of the page independently of the main rotation, a corner peel
+ * that builds through the turn and settles back after landing, precise
+ * geometry so the leaf lands pixel-aligned with the static page underneath)
+ * was worked out and validated in a standalone HTML prototype, but has NOT
+ * been ported into this component yet — that's a separate, still-open task.
+ * The prototype file is the reference for that port when it happens; the
+ * curl/corner-peel math there took several rounds of real bug-fixing
+ * (geometry misalignment, floating-point edge cases in the easing curve,
+ * a landing "pop" caused by the leaf's shading not matching the static
+ * page's) that shouldn't need re-discovering from scratch here.
+ *
+ * ALTERNATIVE LIBRARIES CONSIDERED (in case hand-tuning this further stops
+ * being worth it): the standard off-the-shelf option for this kind of
+ * effect is StPageFlip (npm package `page-flip`) — vanilla JS, no
+ * dependencies, TypeScript, and it accepts an array of page image URLs
+ * directly via loadFromImages(), which matches this project's architecture
+ * exactly (apps/ingest already rasterizes every page to a JPEG). Its core
+ * is framework-agnostic; there's a React wrapper (react-pageflip) but no
+ * equivalent Vue wrapper with real traction as of this writing, so using it
+ * here would mean writing a thin Vue wrapper around the vanilla core
+ * ourselves. Worth checking which community fork is best-maintained before
+ * installing — the original repo's own upstream activity has slowed.
+ * Turn.js was also considered and explicitly ruled out for this project:
+ * it requires jQuery (an unnecessary dependency in a Nuxt app) AND requires
+ * a commercial license for closed-source production use — a real cost
+ * given this is a paid product, not optional fine print. DearFlip's
+ * differentiator is accepting a PDF directly and rasterizing it internally
+ * — not useful here since apps/ingest already does that step ourselves.
  */
 import { ref, nextTick } from 'vue';
 import { useReaderStore } from '~/stores/reader';

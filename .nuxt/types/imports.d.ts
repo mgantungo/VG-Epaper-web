@@ -394,6 +394,7 @@ declare global {
   const useToNumber: typeof import('@vueuse/core').useToNumber
   const useToString: typeof import('@vueuse/core').useToString
   const useToggle: typeof import('@vueuse/core').useToggle
+  const useToolbarBreakpoint: typeof import('../../composables/useToolbarBreakpoint').useToolbarBreakpoint
   const useTransition: typeof import('@vueuse/core').useTransition
   const useTransitionState: typeof import('vue').useTransitionState
   const useUrlSearchParams: typeof import('@vueuse/core').useUrlSearchParams
@@ -839,6 +840,7 @@ declare module 'vue' {
     readonly useToNumber: UnwrapRef<typeof import('@vueuse/core')['useToNumber']>
     readonly useToString: UnwrapRef<typeof import('@vueuse/core')['useToString']>
     readonly useToggle: UnwrapRef<typeof import('@vueuse/core')['useToggle']>
+    readonly useToolbarBreakpoint: UnwrapRef<typeof import('../../composables/useToolbarBreakpoint')['useToolbarBreakpoint']>
     readonly useTransition: UnwrapRef<typeof import('@vueuse/core')['useTransition']>
     readonly useTransitionState: UnwrapRef<typeof import('vue')['useTransitionState']>
     readonly useUrlSearchParams: UnwrapRef<typeof import('@vueuse/core')['useUrlSearchParams']>
