@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useEpaperApi } from '~/composables/useEpaperApi';
+import { useToolbarBreakpoint } from '~/composables/useToolbarBreakpoint';
 
 /**
  * Shape of one page as returned by GET /api/editions/:date, for reference
@@ -23,10 +24,11 @@ export const useReaderStore = defineStore('reader', () => {
   // NUXT_E1001 "composable called outside context" warning — capturing it
   // once here and reusing it below avoids that entirely.
   const api = useEpaperApi();
+  const { isMobile } = useToolbarBreakpoint();
 
   const currentDate = ref(todayIso());
   const edition = ref(null);
-  const viewMode = ref('double'); // 'single' | 'double'
+  const viewMode = ref('double'); // 'single' | 'double' — the reader's PREFERENCE, not necessarily what's shown; see effectiveViewMode
   const viewModeManuallySet = ref(false); // stops useResponsiveReaderMode fighting a manual toolbar choice
   const currentIndex = ref(0);
   const animating = ref(false);
@@ -57,7 +59,22 @@ export const useReaderStore = defineStore('reader', () => {
   const singleViews = computed(() =>
     (edition.value?.pages || []).map(p => ({ left: null, right: p }))
   );
-  const activeViews = computed(() => (viewMode.value === 'double' ? doubleViews.value : singleViews.value));
+
+  /**
+   * The mode actually rendered. Mobile is a hard constraint, not just a
+   * default: below the mobile breakpoint the reader always shows one page
+   * at a time, regardless of `viewMode`. This is deliberately layered on
+   * top of `viewMode` rather than overwriting it — a reader who chose
+   * 'double' on desktop keeps that preference; it's just masked while the
+   * screen is too narrow for a spread to make sense, and comes back
+   * automatically if they widen the window. Every place that used to read
+   * `viewMode` directly to decide geometry (activeViews, index lookups,
+   * jumpTo) now reads this instead — `viewMode` itself is only the stored
+   * preference from here on, not what's necessarily on screen.
+   */
+  const effectiveViewMode = computed(() => (isMobile.value ? 'single' : viewMode.value));
+
+  const activeViews = computed(() => (effectiveViewMode.value === 'double' ? doubleViews.value : singleViews.value));
   const currentView = computed(() => activeViews.value[currentIndex.value] || { left: null, right: null });
 
   const atStart = computed(() => currentIndex.value === 0);
@@ -92,14 +109,14 @@ export const useReaderStore = defineStore('reader', () => {
     const primaryPageNum = currentPrimaryPageNumber();
     viewMode.value = mode;
     if (primaryPageNum != null) {
-      const idx = indexForPageNumber(mode, primaryPageNum);
+      const idx = indexForPageNumber(effectiveViewMode.value, primaryPageNum); // effective, not raw — that's what activeViews actually resolves against
       if (idx >= 0) currentIndex.value = idx;
     }
   }
 
   function currentPrimaryPageNumber() {
     const v = currentView.value;
-    if (viewMode.value === 'single') return v.right?.pageNumber ?? null;
+    if (effectiveViewMode.value === 'single') return v.right?.pageNumber ?? null;
     return v.right?.pageNumber ?? v.left?.pageNumber ?? null;
   }
   function indexForPageNumber(mode, num) {
@@ -125,7 +142,7 @@ export const useReaderStore = defineStore('reader', () => {
 
   function jumpTo(pageNumber) {
     if (animating.value) return;
-    const idx = indexForPageNumber(viewMode.value, pageNumber);
+    const idx = indexForPageNumber(effectiveViewMode.value, pageNumber); // was viewMode.value — meant jumps from Contents/Search would land on the wrong index on mobile, since activeViews resolves against effectiveViewMode, not raw viewMode
     if (idx >= 0) currentIndex.value = idx;
   }
 
@@ -140,7 +157,7 @@ export const useReaderStore = defineStore('reader', () => {
   }
 
   return {
-    currentDate, edition, viewMode, viewModeManuallySet, currentIndex, animating, loading, loadError,
+    currentDate, edition, viewMode, effectiveViewMode, viewModeManuallySet, currentIndex, animating, loading, loadError,
     zoom, soundEnabled,
     doubleViews, singleViews, activeViews, currentView, atStart, atEnd,
     loadEdition, setViewMode, turn, jumpTo, todayIso, setZoom, resetZoom, toggleSound

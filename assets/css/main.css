@@ -22,6 +22,27 @@ img { -webkit-user-drag: none; user-drag: none; }
   width: min(calc(46vw - 110px), 540px);
   aspect-ratio: 900 / 1056;
 }
+
+/* Below 640px (mirrors the `isMobile` breakpoint in
+   composables/useToolbarBreakpoint.js and the toolbar's own Tailwind `sm:`
+   switch), single-page mode is no longer a manually-chosen fallback on an
+   otherwise spacious desktop — it's the ONLY mode (see reader.js's
+   effectiveViewMode), so it needs to actually fill the screen instead of
+   using the desktop formula above, which resolves to roughly 90px wide on
+   a typical phone.
+   Fills whichever of width/height is the tighter constraint below the
+   52px mobile toolbar, while still preserving the page's true aspect
+   ratio — both formulas reference the same two candidate bounds (94vw, and
+   the available height converted through the aspect ratio), so whichever
+   axis is actually limiting is what wins on each side; this is a standard
+   pure-CSS "contain-fit" pattern, not two independently-set dimensions
+   that happen to usually agree. */
+@media (max-width: 639px) {
+  .book-wrap.single-mode {
+    width: min(94vw, calc((100vh - 52px - 24px) * (900 / 1056)));
+    height: min(calc(100vh - 52px - 24px), calc(94vw * (1056 / 900)));
+  }
+}
 .book {
   position: relative; width: 100%; height: 100%;
   perspective: 2600px; border-radius: 3px;

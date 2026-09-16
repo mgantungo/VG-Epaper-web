@@ -135,7 +135,7 @@ function playPageSound() {
 </script>
 
 <template>
-  <div class="book-wrap" :class="{ 'single-mode': reader.viewMode === 'single', 'paywall-preview-blur': reader.edition?.locked }" :style="{ transform: `scale(${reader.zoom})` }">
+  <div class="book-wrap" :class="{ 'single-mode': reader.effectiveViewMode === 'single', 'paywall-preview-blur': reader.edition?.locked }" :style="{ transform: `scale(${reader.zoom})` }">
     <div ref="bookEl" class="book" tabindex="0" aria-label="Newspaper reader. Use left and right arrow keys to turn pages.">
       <div class="page-slot left" v-show="!!reader.currentView.left">
         <PageFace v-if="reader.currentView.left" :page="reader.currentView.left" :locked="pageLocked(reader.currentView.left)" @open-pullout="emit('open-pullout', $event)" />
@@ -144,7 +144,7 @@ function playPageSound() {
         <PageFace v-if="reader.currentView.right" :page="reader.currentView.right" :locked="pageLocked(reader.currentView.right)" @open-pullout="emit('open-pullout', $event)" />
       </div>
 
-      <div v-if="flipFace" ref="flipEl" class="flip-page" :style="{ left: reader.viewMode === 'single' ? '1%' : (flipDirection === 'next' ? 'calc(50% - 1px)' : '1%'), width: reader.viewMode === 'single' ? '98%' : undefined, transformOrigin: flipDirection === 'next' ? 'left center' : 'right center' }">
+      <div v-if="flipFace" ref="flipEl" class="flip-page" :style="{ left: reader.effectiveViewMode === 'single' ? '1%' : (flipDirection === 'next' ? 'calc(50% - 1px)' : '1%'), width: reader.effectiveViewMode === 'single' ? '98%' : undefined, transformOrigin: flipDirection === 'next' ? 'left center' : 'right center' }">
         <div class="face front">
           <PageFace v-if="flipFace.front" :page="flipFace.front" :locked="pageLocked(flipFace.front)" @open-pullout="emit('open-pullout', $event)" />
         </div>
