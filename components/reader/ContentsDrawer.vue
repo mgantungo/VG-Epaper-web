@@ -22,8 +22,7 @@ function selectPage(pageNumber) {
 
 <template>
   <div
-    class="fixed inset-0 z-[180] bg-black/50 transition-opacity"
-    style="top: 52px;"
+    class="fixed right-0 bottom-0 left-0 z-[180] bg-black/50 transition-opacity top-[52px] sm:top-[60px]"
     :class="open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'"
     @click="emit('close')"
   >

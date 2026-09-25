@@ -50,9 +50,8 @@ function selectResult(story) {
 
 <template>
   <div
-    class="fixed inset-0 z-[190] flex justify-center transition-opacity"
+    class="fixed right-0 bottom-0 left-0 z-[190] flex justify-center transition-opacity top-[52px] sm:top-[60px]"
     :class="open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'"
-    style="top: 52px;"
     @click.self="emit('close')"
   >
     <div class="w-full max-w-xl mt-3 bg-neutral-800 border border-neutral-600 rounded-xl shadow-2xl overflow-hidden h-fit">

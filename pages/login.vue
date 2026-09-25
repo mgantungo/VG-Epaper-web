@@ -8,7 +8,7 @@ const route = useRoute();
 const router = useRouter();
 const account = useAccountStore();
 
-const identifier = ref('');
+const email = ref('');
 const password = ref('');
 const submitting = ref(false);
 const error = ref(null);
@@ -17,7 +17,7 @@ async function submit() {
   submitting.value = true;
   error.value = null;
   try {
-    await account.login(identifier.value, password.value);
+    await account.login(email.value, password.value);
     // Send them back to whatever they were trying to read when they hit
     // the paywall (?redirect=/2026/08/25), or home if they came here directly.
     const redirect = route.query.redirect || '/';
@@ -40,7 +40,7 @@ async function submit() {
         <label class="block">
           <span class="text-xs font-mono text-neutral-600">Email</span>
           <input
-            v-model="identifier" type="email" required autocomplete="email"
+            v-model="email" type="email" required autocomplete="email"
             class="mt-1 w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
           >
         </label>

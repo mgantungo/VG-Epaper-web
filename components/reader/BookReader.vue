@@ -72,7 +72,7 @@ async function animateTurn(direction) {
   const oldView = reader.currentView;
   const newView = reader.activeViews[newIndex];
 
-  if (reader.viewMode === 'single') {
+  if (reader.effectiveViewMode === 'single') {
     flipFace.value = { front: oldView.right, back: newView.right };
   } else if (direction === 'next') {
     flipFace.value = { front: oldView.right, back: newView.left };

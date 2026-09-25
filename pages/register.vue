@@ -8,9 +8,10 @@ const route = useRoute();
 const router = useRouter();
 const account = useAccountStore();
 
-const username = ref('');
 const email = ref('');
 const password = ref('');
+const displayName = ref('');
+const phone = ref('');
 const submitting = ref(false);
 const error = ref(null);
 
@@ -18,11 +19,11 @@ async function submit() {
   submitting.value = true;
   error.value = null;
   try {
-    await account.register(username.value, email.value, password.value);
+    await account.register(email.value, password.value, displayName.value, phone.value);
     const redirect = route.query.redirect || '/';
     router.push(redirect);
   } catch (e) {
-    error.value = e?.data?.error || 'Could not create your account. Try a different email or username.';
+    error.value = e?.data?.error || 'Could not create your account. Try a different email.';
   } finally {
     submitting.value = false;
   }
@@ -37,13 +38,6 @@ async function submit() {
 
       <form @submit.prevent="submit" class="space-y-4">
         <label class="block">
-          <span class="text-xs font-mono text-neutral-600">Username</span>
-          <input
-            v-model="username" type="text" required autocomplete="username"
-            class="mt-1 w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
-          >
-        </label>
-        <label class="block">
           <span class="text-xs font-mono text-neutral-600">Email</span>
           <input
             v-model="email" type="email" required autocomplete="email"
@@ -53,7 +47,22 @@ async function submit() {
         <label class="block">
           <span class="text-xs font-mono text-neutral-600">Password</span>
           <input
-            v-model="password" type="password" required autocomplete="new-password" minlength="6"
+            v-model="password" type="password" required autocomplete="new-password" minlength="8"
+            class="mt-1 w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
+          >
+          <span class="text-[10px] text-neutral-400">At least 8 characters</span>
+        </label>
+        <label class="block">
+          <span class="text-xs font-mono text-neutral-600">Name <span class="text-neutral-400">(optional)</span></span>
+          <input
+            v-model="displayName" type="text" autocomplete="name"
+            class="mt-1 w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
+          >
+        </label>
+        <label class="block">
+          <span class="text-xs font-mono text-neutral-600">Phone <span class="text-neutral-400">(optional)</span></span>
+          <input
+            v-model="phone" type="tel" autocomplete="tel"
             class="mt-1 w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
           >
         </label>
