@@ -24,6 +24,33 @@ function editionPath() {
   return `/${y}/${m}/${d}`;
 }
 
+// Polls the account's own entitlement state, not just the payment status —
+// frontend_status: success only means the AGGREGATOR confirmed the charge,
+// not that grantEntitlement() (fire-and-forget on the CMS side) has
+// finished writing the actual Entitlement record yet. Redirecting the
+// instant payment succeeds, without confirming access actually exists,
+// was landing back on the still-locked paywall. Checked every 800ms for
+// up to 10s — generous relative to how fast a single DB write normally
+// completes, short enough not to leave someone staring at "confirmed"
+// for long if something's genuinely slow.
+async function waitForEntitlementThenRedirect() {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    await account.refresh();
+    if (account.hasPurchased(dateIso)) {
+      router.push(editionPath());
+      return;
+    }
+    await new Promise(r => setTimeout(r, 800));
+  }
+  // Payment succeeded but the entitlement still isn't visible after a
+  // generous wait — genuinely unusual (a slow/failed grantEntitlement on
+  // the CMS side), not something to silently redirect into a locked page
+  // over. Send them to the edition anyway rather than strand them here
+  // indefinitely; a manual refresh there will pick it up once it lands.
+  router.push(editionPath());
+}
+
 async function poll(startedAt) {
   if (!receiptToken) {
     status.value = 'error';
@@ -43,8 +70,16 @@ async function poll(startedAt) {
 
     if (result.frontend_status === 'success') {
       status.value = 'success';
-      await account.refresh(); // pick up the entitlement that just got granted
-      setTimeout(() => router.push(editionPath()), 1200);
+      // grantEntitlement() runs fire-and-forget on the CMS side (deliberately
+      // — see epaper-transaction.js's callback action — so a slow entitlement
+      // write never delays acknowledging the aggregator's webhook). That
+      // means the entitlement may not exist YET at the exact moment this
+      // page sees frontend_status: success. A single refresh + fixed
+      // timeout redirect was a real race — confirmed directly: it could
+      // land back on the still-locked paywall if grantEntitlement hadn't
+      // finished yet. Poll for the entitlement to actually be confirmed
+      // before redirecting, rather than guessing at a delay long enough.
+      await waitForEntitlementThenRedirect();
       return;
     }
     if (result.frontend_status === 'failed') {
