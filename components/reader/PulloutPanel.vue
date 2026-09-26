@@ -1,6 +1,20 @@
 <script setup>
+import { useReaderStore } from '~/stores/reader';
+
 const props = defineProps({ story: { type: Object, default: null } });
 const emit = defineEmits(['close']);
+
+const reader = useReaderStore();
+
+// Only ever set when the ingest engine found an explicit jump-line marker
+// in the text ("Turned to Page N" / "Continued from Page N") — never
+// guessed from layout. See apps/ingest/src/pipeline/extractSections.js's
+// own comments for why an absent marker means no link here at all, rather
+// than a guess.
+function goToPage(pageNumber) {
+  emit('close');
+  reader.jumpTo(pageNumber);
+}
 </script>
 
 <template>
@@ -15,6 +29,12 @@ const emit = defineEmits(['close']);
       <!-- article column: this is what actually scrolls, independently of
            the ad sidebar, so a long article doesn't drag the ad away with it -->
       <div class="flex-1 min-w-0 overflow-y-auto p-6 md:p-8 select-text">
+        <button
+          v-if="story.continuesFromPage"
+          class="font-mono text-[10px] tracking-widest uppercase text-neutral-500 hover:text-neutral-900 mb-2 flex items-center gap-1"
+          @click="goToPage(story.continuesFromPage)"
+        >← Continued from page {{ story.continuesFromPage }}</button>
+
         <div class="font-mono text-[10px] tracking-widest uppercase text-neutral-500 mb-1">{{ story.kicker }}</div>
         <h2 class="font-serif font-extrabold text-2xl leading-tight mb-1 pr-8">{{ story.headline }}</h2>
         <div class="font-mono text-[10px] text-neutral-500 mb-4">{{ story.byline }}</div>
@@ -23,6 +43,12 @@ const emit = defineEmits(['close']);
              render via a sanitized markdown/HTML component in production rather than v-html
              on unsanitized input. -->
         <div class="prose prose-neutral text-[14.5px] leading-relaxed" v-html="story.body || story.teaser" />
+
+        <button
+          v-if="story.continuesToPage"
+          class="mt-5 font-mono text-[11px] tracking-wide uppercase text-white bg-neutral-900 hover:bg-neutral-700 rounded px-4 py-2.5 flex items-center gap-1.5"
+          @click="goToPage(story.continuesToPage)"
+        >Continues on page {{ story.continuesToPage }} →</button>
       </div>
 
       <!-- ad sidebar — placeholder slots; wire these to a real ad server/
