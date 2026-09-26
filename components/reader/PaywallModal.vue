@@ -20,10 +20,18 @@ const account = useAccountStore();
 const isToday = computed(() => props.dateIso === reader.todayIso());
 
 const phoneNumber = ref('');
-// Adjust these to whatever values your integrator actually expects — this
-// wasn't documented anywhere I had access to, so "MTN"/"Airtel" are a
-// reasonable Uganda-market default, not confirmed against the real API.
-const paymentMethod = ref('MTN');
+// Still tracks which network the customer selected — kept for their own
+// clarity/confirmation, and in case the choice needs to matter for
+// something else later. It's decoupled from what's actually sent below:
+// a real, confirmed working VisionShop transaction against this same
+// gateway used payment_method: "momo" for a mobile-money payment — the
+// integrator evidently classifies MTN and Airtel Money both as the
+// single generic "momo" category and determines the actual carrier from
+// the phone number's own prefix, not from this field. The earlier
+// "MTN"/"AIRTEL" values were an unconfirmed guess (documented as such at
+// the time) and were rejected outright by the real integrator ("No valid
+// payment method supplied").
+const selectedNetwork = ref('MTN');
 const submitting = ref(false);
 const error = ref(null);
 
@@ -40,7 +48,7 @@ async function continueToPayment() {
   submitting.value = true;
   error.value = null;
   try {
-    const res = await api.startCheckout(props.dateIso, phoneNumber.value.trim(), paymentMethod.value);
+    const res = await api.startCheckout(props.dateIso, phoneNumber.value.trim(), 'momo');
     // No checkoutUrl to redirect to — the integrator sends a PIN prompt
     // straight to the phone number just entered. /pay/return owns all the
     // "wait for the customer to approve it" polling/status UI from here.
@@ -91,7 +99,7 @@ async function continueToPayment() {
           <label class="block">
             <span class="text-xs font-mono text-neutral-600">Payment method</span>
             <select
-              v-model="paymentMethod"
+              v-model="selectedNetwork"
               class="mt-1 w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-neutral-900"
             >
               <option value="MTN">MTN Mobile Money</option>
