@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from '#imports';
 import { useEpaperApi } from '~/composables/useEpaperApi';
 import { useReaderStore } from '~/stores/reader';
@@ -8,7 +8,7 @@ import { useAccountStore } from '~/stores/account';
 const props = defineProps({
   open: { type: Boolean, required: true },
   dateIso: { type: String, required: true },
-  price: { type: Object, default: null } // { amount, currency, kind }
+  price: { type: Object, default: null } // initial locked-preview price, shown only until real plans finish loading
 });
 const emit = defineEmits(['close']);
 
@@ -19,18 +19,64 @@ const reader = useReaderStore();
 const account = useAccountStore();
 const isToday = computed(() => props.dateIso === reader.todayIso());
 
+const allPlans = ref([]);
+const plansLoading = ref(true);
+const selectedPlanKey = ref(null);
+
+/**
+ * Which plans make sense to OFFER depends on whether this is today's
+ * paper or an archive date — a fresh subscription starting today doesn't
+ * cover a PAST date (coverageStart is "now", not backdated), so weekly/
+ * monthly/quarterly/annual genuinely don't apply to an archive purchase;
+ * and single_archive/all_archive_access don't make sense for "today"
+ * either (there's nothing to archive yet). "Daily is the default" for the
+ * today case specifically — the minimal, cheapest way to unlock just
+ * today's paper — with every subscription length offered right alongside
+ * it as a one-click upgrade, not a separate screen.
+ */
+const TODAY_PLAN_KEYS = ['daily', 'weekly', 'monthly', 'quarterly', 'annual'];
+const ARCHIVE_PLAN_KEYS = ['single_archive', 'all_archive_access'];
+
+const offeredPlans = computed(() => {
+  const keys = isToday.value ? TODAY_PLAN_KEYS : ARCHIVE_PLAN_KEYS;
+  // Keeps the deliberate key order above (cheapest/most-direct option
+  // first) rather than whatever order Strapi happens to return.
+  return keys.map(key => allPlans.value.find(p => p.key === key)).filter(Boolean);
+});
+
+const selectedPlan = computed(() => offeredPlans.value.find(p => p.key === selectedPlanKey.value) || null);
+
+onMounted(async () => {
+  try {
+    const res = await api.getPlans();
+    allPlans.value = res.plans || [];
+  } catch {
+    allPlans.value = []; // falls back to the price prop already shown; radios just won't populate
+  } finally {
+    plansLoading.value = false;
+    selectedPlanKey.value = isToday.value ? 'daily' : 'single_archive';
+  }
+});
+
+function planPeriodLabel(plan) {
+  if (plan.kind === 'daily') return '/ day';
+  if (plan.kind === 'single_archive') return '';
+  if (plan.kind === 'all_archive_access') return '/ forever';
+  if (plan.kind === 'period_subscription') {
+    if (plan.durationDays === 7) return '/ week';
+    if (plan.durationDays === 30) return '/ month';
+    if (plan.durationDays === 90) return '/ quarter';
+    if (plan.durationDays === 365) return '/ year';
+    return `/ ${plan.durationDays} days`;
+  }
+  return '';
+}
+
 const phoneNumber = ref('');
 // Still tracks which network the customer selected — kept for their own
-// clarity/confirmation, and in case the choice needs to matter for
-// something else later. It's decoupled from what's actually sent below:
-// a real, confirmed working VisionShop transaction against this same
-// gateway used payment_method: "momo" for a mobile-money payment — the
-// integrator evidently classifies MTN and Airtel Money both as the
-// single generic "momo" category and determines the actual carrier from
-// the phone number's own prefix, not from this field. The earlier
-// "MTN"/"AIRTEL" values were an unconfirmed guess (documented as such at
-// the time) and were rejected outright by the real integrator ("No valid
-// payment method supplied").
+// clarity/confirmation. Decoupled from what's actually sent below: a
+// confirmed working VisionShop transaction against this same gateway used
+// payment_method: "momo" regardless of carrier — see continueToPayment().
 const selectedNetwork = ref('MTN');
 const submitting = ref(false);
 const error = ref(null);
@@ -38,6 +84,10 @@ const error = ref(null);
 async function continueToPayment() {
   if (!account.loggedIn) {
     router.push({ path: '/login', query: { redirect: route.fullPath } });
+    return;
+  }
+  if (!selectedPlanKey.value) {
+    error.value = 'Choose a plan.';
     return;
   }
   if (!phoneNumber.value.trim()) {
@@ -48,7 +98,7 @@ async function continueToPayment() {
   submitting.value = true;
   error.value = null;
   try {
-    const res = await api.startCheckout(props.dateIso, phoneNumber.value.trim(), 'momo');
+    const res = await api.startCheckout(props.dateIso, phoneNumber.value.trim(), 'momo', selectedPlanKey.value);
     // No checkoutUrl to redirect to — the integrator sends a PIN prompt
     // straight to the phone number just entered. /pay/return owns all the
     // "wait for the customer to approve it" polling/status UI from here.
@@ -68,17 +118,13 @@ async function continueToPayment() {
     :class="open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'"
     @click.self="emit('close')"
   >
-    <div v-if="open" class="relative w-full max-w-sm bg-white text-neutral-900 rounded-2xl shadow-2xl p-8 text-center">
+    <div v-if="open" class="relative w-full max-w-sm bg-white text-neutral-900 rounded-2xl shadow-2xl p-8 text-center max-h-[90vh] overflow-y-auto">
       <button class="absolute top-3 right-4 text-neutral-400 hover:text-neutral-900" @click="emit('close')">✕</button>
       <div class="text-5xl mb-3">🔒</div>
       <h2 class="font-serif font-extrabold text-2xl mb-1">Subscribe to keep reading</h2>
       <p class="text-sm text-neutral-500 mb-5">
-        {{ isToday ? "Your subscription covers today's e-paper." : "Unlock this archive edition." }}
+        {{ isToday ? "Choose how you'd like to unlock today's e-paper." : "Unlock this archive edition." }}
       </p>
-
-      <div v-if="price" class="font-mono text-lg font-bold mb-5">
-        {{ price.amount?.toLocaleString() }} {{ price.currency }}{{ isToday ? ' / month' : '' }}
-      </div>
 
       <template v-if="!account.loggedIn">
         <button
@@ -88,6 +134,27 @@ async function continueToPayment() {
       </template>
 
       <template v-else>
+        <div v-if="plansLoading" class="text-sm text-neutral-400 py-6">Loading plans…</div>
+
+        <!-- Every plan visible and selectable in one list — no separate
+             "choose a plan" screen before "enter your details." Clicking
+             anywhere in a row selects it, not just the radio dot itself. -->
+        <div v-else class="text-left space-y-2 mb-5">
+          <label
+            v-for="plan in offeredPlans" :key="plan.key"
+            class="flex items-center justify-between gap-3 border rounded-lg px-3.5 py-3 cursor-pointer transition"
+            :class="selectedPlanKey === plan.key ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'"
+          >
+            <span class="flex items-center gap-3">
+              <input v-model="selectedPlanKey" type="radio" name="plan" :value="plan.key" class="accent-neutral-900">
+              <span class="text-sm font-medium">{{ plan.label }}</span>
+            </span>
+            <span class="font-mono text-sm whitespace-nowrap">
+              {{ plan.price?.toLocaleString() }} {{ plan.currency }}<span class="text-neutral-400 text-xs">{{ planPeriodLabel(plan) }}</span>
+            </span>
+          </label>
+        </div>
+
         <div class="text-left space-y-3 mb-4">
           <label class="block">
             <span class="text-xs font-mono text-neutral-600">Phone number to pay with</span>
@@ -109,10 +176,10 @@ async function continueToPayment() {
         </div>
 
         <button
-          :disabled="submitting"
+          :disabled="submitting || plansLoading || !selectedPlanKey"
           class="w-full bg-neutral-900 text-white rounded-lg py-3 font-mono text-sm disabled:opacity-60"
           @click="continueToPayment"
-        >{{ submitting ? 'Sending payment request…' : (isToday ? 'Subscribe now' : 'Pay & unlock this edition') }}</button>
+        >{{ submitting ? 'Sending payment request…' : (selectedPlan ? `Pay ${selectedPlan.price?.toLocaleString()} ${selectedPlan.currency} & unlock` : 'Choose a plan') }}</button>
       </template>
 
       <p v-if="error" class="text-red-600 text-xs mt-3">{{ error }}</p>

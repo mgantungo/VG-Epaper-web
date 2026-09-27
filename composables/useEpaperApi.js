@@ -75,10 +75,36 @@ export function useEpaperApi() {
    * customer's phone. Callers should show a "check your phone" state and
    * poll getPaymentStatus(receiptToken) — see PaywallModal.vue.
    */
-  async function startCheckout(dateIso, phoneNumber, paymentmethod) {
+  /**
+   * Real plan data (key, label, price, currency, kind, durationDays) from
+   * Strapi's epaper-plan collection — powers the paywall's plan picker
+   * with actual, currently-configured prices instead of a hardcoded
+   * value. Not authedFetch: plan listings are public information (the
+   * same prices anyone would see on a pricing page), no reason to require
+   * a valid session just to view them.
+   */
+  async function getPlans() {
+    return $fetch(`${config.public.middlewareUrl}/api/pay/plans`);
+  }
+
+  /**
+   * Starts a real payment — phoneNumber/paymentmethod are required by the
+   * middleware's /checkout (it proxies to Strapi's epaper-transaction
+   * initialize, which needs both to actually request a PIN prompt from
+   * the integrator). planKey is now explicit — which plan the reader
+   * picked in the radio selector — rather than always being silently
+   * derived from the date; omit it to fall back to the old
+   * today-is-daily/otherwise-single_archive behavior. Returns
+   * { receiptToken, invoiceNumber, amount, currency, status } — NOT a
+   * checkoutUrl to redirect to; there's no hosted checkout page, the
+   * integrator pushes the prompt straight to the customer's phone.
+   * Callers should show a "check your phone" state and poll
+   * getPaymentStatus(receiptToken) — see PaywallModal.vue.
+   */
+  async function startCheckout(dateIso, phoneNumber, paymentmethod, planKey) {
     return authedFetch(`${config.public.middlewareUrl}/api/pay/checkout`, {
       method: 'POST',
-      body: { date: dateIso, phoneNumber, paymentmethod }
+      body: { date: dateIso, phoneNumber, paymentmethod, planKey }
     });
   }
 
@@ -109,30 +135,24 @@ export function useEpaperApi() {
     return authedFetch(`${config.public.middlewareUrl}${relativeUrl}`, { responseType: 'blob' });
   }
 
-  // email/password — matches the epaper-user identity store (see
-  // apps/cms/src/api/epaper-user), not Strapi's users-permissions, which
-  // used `identifier` and required a separate username. Sent as `email`
-  // specifically because that's the exact body key the middleware's
-  // /api/auth/login expects — sending `identifier` (the old key name)
-  // would silently 400, since the field just wouldn't be there at all.
-  async function login(email, password) {
+  async function login(identifier, password) {
     return $fetch(`${config.public.middlewareUrl}/api/auth/login`, {
       method: 'POST',
       credentials: 'include',
-      body: { email, password }
+      body: { identifier, password }
     });
   }
 
-  async function register(email, password, displayName, phone) {
+  async function register(username, email, password) {
     return $fetch(`${config.public.middlewareUrl}/api/auth/register`, {
       method: 'POST',
       credentials: 'include',
-      body: { email, password, displayName, phone }
+      body: { username, email, password }
     });
   }
 
   return {
-    getEdition, getPurchasedDates, getAccount, startCheckout, getPaymentStatus,
+    getEdition, getPurchasedDates, getAccount, startCheckout, getPaymentStatus, getPlans,
     login, register, fetchImageBlob
   };
 }
