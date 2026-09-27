@@ -135,19 +135,27 @@ export function useEpaperApi() {
     return authedFetch(`${config.public.middlewareUrl}${relativeUrl}`, { responseType: 'blob' });
   }
 
-  async function login(identifier, password) {
+  // email/password — matches the epaper-user identity store (see
+  // apps/cms/src/api/epaper-user), not Strapi's users-permissions, which
+  // used `identifier` and required a separate username. Sent as `email`
+  // specifically because that's the exact body key the middleware's
+  // /api/auth/login expects — sending `identifier` (the old key name)
+  // silently 400s, since the field just isn't there at all. (This exact
+  // mistake made it back into this file once already, from editing a
+  // stale prior copy — see the login flow that surfaced it.)
+  async function login(email, password) {
     return $fetch(`${config.public.middlewareUrl}/api/auth/login`, {
       method: 'POST',
       credentials: 'include',
-      body: { identifier, password }
+      body: { email, password }
     });
   }
 
-  async function register(username, email, password) {
+  async function register(email, password, displayName, phone) {
     return $fetch(`${config.public.middlewareUrl}/api/auth/register`, {
       method: 'POST',
       credentials: 'include',
-      body: { username, email, password }
+      body: { email, password, displayName, phone }
     });
   }
 
