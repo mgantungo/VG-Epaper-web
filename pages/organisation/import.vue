@@ -3,7 +3,9 @@
   URL:       /organisation/import
 
   Spreadsheet upload for Organisation Admins, in three steps:
-    1. choose an .xlsx/.csv (template available) and a default access period
+    1. download the members spreadsheet (current members pre-filled, or a
+       guided empty sheet), fill it in, upload it with a default period for
+       NEW people (existing members change only if their row has dates)
     2. preview: every row with what will happen (new account, added,
        extended) or why it's skipped; nothing is written yet
     3. apply: one transaction; invite emails go out afterwards
@@ -46,9 +48,10 @@ const paidUntil = computed(() => summary.value?.paidPeriod?.current?.end || summ
 async function downloadTemplate() {
   try {
     const blob = await orgAdmin.template();
-    saveBlob(blob, 'epaper-members-template.xlsx');
+    const slug = (summary.value?.organisation?.name || 'organisation').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    saveBlob(blob, `${slug}-members-${new Date().toISOString().slice(0, 10)}.xlsx`);
   } catch (e) {
-    error.value = errMsg(e, 'The template could not be downloaded.');
+    error.value = errMsg(e, 'The spreadsheet could not be downloaded.');
   }
 }
 
@@ -104,7 +107,8 @@ function restart() {
 const ACTION = {
   new_user: { label: 'New account + invite', cls: 'bg-blue-50 text-blue-700' },
   add_existing: { label: 'Add (has account)', cls: 'bg-emerald-50 text-emerald-700' },
-  extend: { label: 'Extend access', cls: 'bg-neutral-100 text-neutral-700' },
+  extend: { label: 'Extend access', cls: 'bg-neutral-900 text-white' },
+  keep: { label: 'No change', cls: 'bg-neutral-100 text-neutral-600' },
   error: { label: 'Skipped', cls: 'bg-red-50 text-red-700' }
 };
 const rowFilters = computed(() => {
@@ -114,6 +118,7 @@ const rowFilters = computed(() => {
     { value: 'new_user', label: 'New', n: s.newUsers },
     { value: 'add_existing', label: 'Added', n: s.addExisting },
     { value: 'extend', label: 'Extended', n: s.extend },
+    { value: 'keep', label: 'No change', n: s.keep ?? 0 },
     { value: 'error', label: 'Skipped', n: s.errors }
   ];
 });
@@ -174,22 +179,22 @@ function fmt(iso) {
         <!-- step 1 -->
         <section v-if="step === 1" class="grid md:grid-cols-2 gap-5 mt-5">
           <div class="bg-white rounded-xl shadow-sm p-5">
-            <h2 class="font-serif font-bold text-lg">1. Your spreadsheet</h2>
-            <p class="text-sm text-neutral-600 mt-2">One person per row, with an <strong>Email</strong> column. Optional columns: Name, Phone, Start date, End date, Months. Excel (.xlsx) or CSV, up to 5,000 rows.</p>
+            <h2 class="font-serif font-bold text-lg">1. Download, fill in, upload</h2>
+            <p class="text-sm text-neutral-600 mt-2">Download your members spreadsheet. It lists everyone in your organisation today; if there's nobody yet, it's an empty sheet with headings and help notes. Add one person per row; only <strong>Email</strong> is required.</p>
             <ul class="text-sm text-neutral-600 mt-3 list-disc pl-5 space-y-1">
               <li>New people get an account and an email to set their password.</li>
-              <li>People already in your organisation get their access extended. Nobody is duplicated.</li>
+              <li>Existing members only change if you fill in their dates or months. Nobody is duplicated.</li>
               <li>Nothing changes until you've seen the preview and confirmed.</li>
             </ul>
-            <button class="mt-4 border border-neutral-300 rounded-lg px-4 py-2 text-sm hover:border-neutral-900" @click="downloadTemplate">Download the template</button>
+            <button class="mt-4 bg-neutral-900 text-white rounded-lg px-4 py-2 text-sm font-medium" @click="downloadTemplate">Download members spreadsheet</button>
             <label class="block mt-5">
               <span class="text-xs font-mono text-neutral-600">File</span>
               <input type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" class="mt-1 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-900 file:text-white file:px-4 file:py-2" @change="onFile">
             </label>
           </div>
           <div class="bg-white rounded-xl shadow-sm p-5">
-            <h2 class="font-serif font-bold text-lg">2. Default access period</h2>
-            <p class="text-sm text-neutral-600 mt-2 mb-4">Used for rows without their own dates or months. Access never goes past the end of your paid period<template v-if="paidUntil"> ({{ fmt(paidUntil) }})</template>.</p>
+            <h2 class="font-serif font-bold text-lg">2. Access for new people</h2>
+            <p class="text-sm text-neutral-600 mt-2 mb-4">Used for <strong>new</strong> people whose row has no dates or months. Existing members without dates are left as they are. Access never goes past the end of your paid period<template v-if="paidUntil"> ({{ fmt(paidUntil) }})</template>.</p>
             <OrgPeriodPicker v-model="period" :paid-until="paidUntil" id-prefix="imp" />
             <button class="mt-6 w-full bg-neutral-900 text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-60" :disabled="busy || !file" @click="check">{{ busy ? 'Checking…' : 'Check file' }}</button>
           </div>
@@ -197,10 +202,11 @@ function fmt(iso) {
 
         <!-- step 2 -->
         <section v-else-if="step === 2 && preview" class="mt-5">
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
             <div class="bg-white rounded-xl shadow-sm p-4"><p class="font-mono text-[11px] text-neutral-500">New accounts</p><p class="font-serif font-extrabold text-2xl">{{ preview.summary.newUsers }}</p></div>
             <div class="bg-white rounded-xl shadow-sm p-4"><p class="font-mono text-[11px] text-neutral-500">Added (have account)</p><p class="font-serif font-extrabold text-2xl">{{ preview.summary.addExisting }}</p></div>
             <div class="bg-white rounded-xl shadow-sm p-4"><p class="font-mono text-[11px] text-neutral-500">Access extended</p><p class="font-serif font-extrabold text-2xl">{{ preview.summary.extend }}</p></div>
+            <div class="bg-white rounded-xl shadow-sm p-4"><p class="font-mono text-[11px] text-neutral-500">No change</p><p class="font-serif font-extrabold text-2xl">{{ preview.summary.keep ?? 0 }}</p></div>
             <div class="bg-white rounded-xl shadow-sm p-4"><p class="font-mono text-[11px] text-neutral-500">Shortened to paid period</p><p class="font-serif font-extrabold text-2xl">{{ preview.summary.clipped }}</p></div>
             <div class="bg-white rounded-xl shadow-sm p-4" :class="preview.summary.errors ? 'ring-2 ring-red-200' : ''"><p class="font-mono text-[11px] text-neutral-500">Skipped</p><p class="font-serif font-extrabold text-2xl" :class="preview.summary.errors ? 'text-red-700' : ''">{{ preview.summary.errors }}</p></div>
           </div>
@@ -240,7 +246,7 @@ function fmt(iso) {
               {{ busy ? 'Applying…' : actionable ? `Apply ${actionable} ${actionable === 1 ? 'change' : 'changes'}` : 'Nothing to apply' }}
             </button>
           </div>
-          <p class="text-xs text-neutral-500 text-right mt-2">Skipped rows are left out. This preview is valid for 24 hours.</p>
+          <p class="text-xs text-neutral-500 text-right mt-2">Skipped and unchanged rows are left as they are. This preview is valid for 24 hours.</p>
         </section>
 
         <!-- step 3 -->
@@ -250,6 +256,7 @@ function fmt(iso) {
             <li><strong>{{ result.result.created }}</strong> new accounts created</li>
             <li><strong>{{ result.result.added }}</strong> existing readers added</li>
             <li><strong>{{ result.result.extended }}</strong> members' access extended<template v-if="result.result.unchanged">, {{ result.result.unchanged }} already had it</template></li>
+            <li><strong>{{ result.result.kept ?? 0 }}</strong> members left unchanged</li>
             <li><strong>{{ result.result.skipped }}</strong> rows skipped</li>
           </ul>
           <p v-if="result.invitesQueued" class="text-sm text-neutral-600 mt-4">{{ result.invitesQueued }} invite {{ result.invitesQueued === 1 ? 'email is' : 'emails are' }} being sent. Anyone who doesn't receive theirs can be sent another from the members list.</p>

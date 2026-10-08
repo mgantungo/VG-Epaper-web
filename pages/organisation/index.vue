@@ -293,7 +293,7 @@ onUnmounted(() => { clearTimeout(flashTimer); clearTimeout(searchTimer); });
             <h1 class="font-serif font-extrabold text-3xl leading-tight truncate">{{ summary.organisation.name }}</h1>
           </div>
           <div class="flex flex-wrap gap-2">
-            <NuxtLink to="/organisation/import" class="border border-neutral-300 bg-white rounded-lg px-4 py-2 text-sm font-medium hover:border-neutral-900">Upload spreadsheet</NuxtLink>
+            <NuxtLink to="/organisation/import" class="border border-neutral-300 bg-white rounded-lg px-4 py-2 text-sm font-medium hover:border-neutral-900">Excel: download / upload</NuxtLink>
             <button class="bg-neutral-900 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50" :disabled="seatsFull" :title="seatsFull ? 'All seats are in use' : ''" @click="openAdd">Add member</button>
           </div>
         </div>
@@ -375,7 +375,7 @@ onUnmounted(() => { clearTimeout(flashTimer); clearTimeout(searchTimer); });
           </div>
 
           <div v-if="membersLoading && !members.length" class="px-4 pb-4 space-y-2"><div v-for="n in 5" :key="n" class="h-12 bg-neutral-100 rounded animate-pulse" /></div>
-          <p v-else-if="!members.length" class="px-4 pb-8 pt-2 text-sm text-neutral-500 text-center">{{ search || filter ? 'No members match.' : 'No members yet. Add people one at a time, or upload a spreadsheet.' }}</p>
+          <p v-else-if="!members.length" class="px-4 pb-8 pt-2 text-sm text-neutral-500 text-center">{{ search || filter ? 'No members match.' : 'No members yet. Add people one at a time, or download the Excel sheet, fill it in and upload it.' }}</p>
 
           <ul v-else class="divide-y divide-neutral-100">
             <li v-for="m in members" :key="m.seatId" class="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2 md:grid md:grid-cols-[minmax(0,1fr)_200px_150px_290px]">
