@@ -1,5 +1,11 @@
 import { useRuntimeConfig, useCookie, $fetch } from '#imports';
 
+/**
+ * apps/web/composables/useEpaperApi.js  (srcDir-relative)     MODIFIED (organisations)
+ * Change: adds `orgAdmin` (Organisation Admin dashboard calls) and
+ * inspectInvite()/acceptInvite(). Everything that was here is unchanged.
+ */
+
 export function useEpaperApi() {
   const config = useRuntimeConfig();
   const token = useCookie('token'); // short-lived Strapi access token, set at login — see routes/auth.js for why it's short-lived
@@ -159,8 +165,45 @@ export function useEpaperApi() {
     });
   }
 
+  // ---- Organisation Admin dashboard (pages/organisation/*) -------------
+  // ADDED (organisations). All authedFetch, so an expired access token is
+  // refreshed and retried exactly like every other signed-in call. Whether
+  // the reader is actually an Org Admin is decided by the server on every
+  // request (403 otherwise); nothing here sends an organisation id.
+  const orgAdminBase = () => `${config.public.middlewareUrl}/api/org-admin`;
+  const orgAdmin = {
+    summary: () => authedFetch(`${orgAdminBase()}/summary`),
+    members: (query = {}) => authedFetch(`${orgAdminBase()}/members`, { query }),
+    addMember: (body) => authedFetch(`${orgAdminBase()}/members`, { method: 'POST', body }),
+    grantAccess: (seatId, body) => authedFetch(`${orgAdminBase()}/members/${seatId}/access`, { method: 'POST', body }),
+    setStatus: (seatId, status, reason) => authedFetch(`${orgAdminBase()}/members/${seatId}/status`, { method: 'POST', body: { status, reason } }),
+    setRole: (seatId, role) => authedFetch(`${orgAdminBase()}/members/${seatId}/role`, { method: 'POST', body: { role } }),
+    remove: (seatId, reason) => authedFetch(`${orgAdminBase()}/members/${seatId}/remove`, { method: 'POST', body: { reason } }),
+    resendInvite: (seatId) => authedFetch(`${orgAdminBase()}/members/${seatId}/resend-invite`, { method: 'POST' }),
+    audit: (query = {}) => authedFetch(`${orgAdminBase()}/audit`, { query }),
+    template: () => authedFetch(`${orgAdminBase()}/import/template`, { responseType: 'blob' }),
+    // formData: FormData with `file` and optionally `defaults` (JSON string)
+    previewImport: (formData) => authedFetch(`${orgAdminBase()}/import/preview`, { method: 'POST', body: formData }),
+    commitImport: (importId) => authedFetch(`${orgAdminBase()}/import/${importId}/commit`, { method: 'POST' })
+  };
+
+  // ---- Organisation invites (pages/invite.vue) ---------------------------
+  // Not authedFetch: the person accepting has no session yet. acceptInvite
+  // returns { jwt, user } like login(), and sets the refresh cookie.
+  async function inspectInvite(token) {
+    return $fetch(`${config.public.middlewareUrl}/api/auth/invite/inspect`, { method: 'POST', body: { token } });
+  }
+  async function acceptInvite(token, password, displayName) {
+    return $fetch(`${config.public.middlewareUrl}/api/auth/invite/accept`, {
+      method: 'POST',
+      credentials: 'include',
+      body: { token, password, displayName }
+    });
+  }
+
   return {
     getEdition, getPurchasedDates, getAccount, startCheckout, getPaymentStatus, getPlans,
-    login, register, fetchImageBlob
+    login, register, fetchImageBlob,
+    orgAdmin, inspectInvite, acceptInvite
   };
 }
