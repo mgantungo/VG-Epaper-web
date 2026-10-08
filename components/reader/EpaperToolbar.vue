@@ -5,7 +5,9 @@ import { NuxtLink } from '#components';
 import { useReaderStore } from '~/stores/reader';
 import { useAccountStore } from '~/stores/account';
 import { useToolbarBreakpoint } from '~/composables/useToolbarBreakpoint';
-// Organisations: renders only for Organisation Admins (see the component).
+// Organisations: a "Manage organisation" row in the ≡ menu, rendered only
+// for Organisation Admins (see the component). In the menu at every tier,
+// never inline, so the toolbar row's width is unchanged.
 import OrgAdminLink from '~/components/OrgAdminLink.vue';
 
 const route = useRoute();
@@ -211,13 +213,17 @@ const showSignInInline = computed(() => isDesktop.value);
               <span class="text-neutral-300 truncate max-w-[150px]">{{ account.user?.email || 'Account' }}</span>
               <button class="text-neutral-500 hover:text-white" @click="account.logout(); closePopovers()">Sign out</button>
             </div>
-            <OrgAdminLink
-              v-if="account.loggedIn" :key="`menu-${account.user?.email || ''}`"
-              class="flex items-center gap-2 w-full px-3 py-2 rounded-md hover:bg-neutral-700"
-              @click="closePopovers()"
-            ><span>🏢</span><span>Manage organisation</span></OrgAdminLink>
             <div class="border-t border-neutral-700 my-1" />
           </template>
+
+          <!-- Organisation Admins only (renders nothing for anyone else).
+               Lives in this menu at EVERY tier rather than inline, so it
+               never adds width to the toolbar row itself. -->
+          <OrgAdminLink
+            v-if="account.loggedIn" :key="`menu-${account.user?.email || ''}`"
+            class="flex items-center gap-2 w-full px-3 py-2 rounded-md hover:bg-neutral-700 text-white"
+            @click="closePopovers()"
+          ><span>🏢</span><span>Manage organisation</span><span class="ml-auto text-neutral-500">›</span></OrgAdminLink>
 
           <button class="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-neutral-700 text-left" @click="reader.toggleSound()">
             <span>Page-turn sound</span>
@@ -234,10 +240,6 @@ const showSignInInline = computed(() => isDesktop.value);
 
       <!-- sign-in / account: inline only at the desktop tier -->
       <template v-if="showSignInInline">
-        <OrgAdminLink
-          v-if="account.loggedIn" :key="`inline-${account.user?.email || ''}`"
-          class="flex items-center gap-2 h-9 sm:h-11 px-3 rounded-md border border-neutral-600 text-white text-sm font-mono hover:bg-neutral-700 whitespace-nowrap"
-        >🏢 Organisation</OrgAdminLink>
         <NuxtLink
           v-if="!account.loggedIn"
           :to="{ path: '/login', query: { redirect: route.fullPath } }"
