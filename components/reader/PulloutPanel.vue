@@ -6,6 +6,15 @@ const emit = defineEmits(['close']);
 
 const reader = useReaderStore();
 
+// Story text from ingest/the story editor is plain text: paragraphs are
+// separated by a blank line. Render each as its own <p> (as text, not HTML).
+const paragraphs = computed(() =>
+  String(props.story?.body || props.story?.teaser || '')
+    .split(/\n\s*\n/)
+    .map(p => p.replace(/\s*\n\s*/g, ' ').trim())
+    .filter(Boolean)
+);
+
 // Only ever set when the ingest engine found an explicit jump-line marker
 // in the text ("Turned to Page N" / "Continued from Page N") — never
 // guessed from layout. See apps/ingest/src/pipeline/extractSections.js's
@@ -39,10 +48,9 @@ function goToPage(pageNumber) {
         <h2 class="font-serif font-extrabold text-2xl leading-tight mb-1 pr-8">{{ story.headline }}</h2>
         <div class="font-mono text-[10px] text-neutral-500 mb-4">{{ story.byline }}</div>
         <div class="h-px bg-neutral-300 mb-4" />
-        <!-- Strapi's richtext field returns HTML/markdown depending on your editor config —
-             render via a sanitized markdown/HTML component in production rather than v-html
-             on unsanitized input. -->
-        <div class="prose prose-neutral text-[14.5px] leading-relaxed" v-html="story.body || story.teaser" />
+        <div class="text-[14.5px] leading-relaxed space-y-4">
+          <p v-for="(para, i) in paragraphs" :key="i">{{ para }}</p>
+        </div>
 
         <button
           v-if="story.continuesToPage"
