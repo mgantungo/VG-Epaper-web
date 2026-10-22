@@ -7,6 +7,9 @@
   resend invite, remove) and the activity log. Spreadsheet upload lives on
   /organisation/import. Every action is re-authorised by the server from
   the reader's own admin seat; a non-admin sees a plain explanation.
+  UPDATED (Phase 0, publications): seats per publication (no amounts), and
+  which paid publications each member reads, set when adding a member and
+  switchable per member. Each publication's seats are capped by its contract.
 -->
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -16,7 +19,7 @@ import { useEpaperApi } from '~/composables/useEpaperApi';
 import OrgPeriodPicker, { toPeriodBody, newPeriod } from '~/components/OrgPeriodPicker.vue';
 
 definePageMeta({ middleware: 'org-admin' });
-useHead({ title: 'Manage organisation — New Vision e-paper' });
+useHead({ title: 'Manage organisation — Vision Group e-papers' });
 
 const { orgAdmin } = useEpaperApi();
 const today = new Date().toISOString().slice(0, 10);
@@ -101,11 +104,31 @@ function accessText(m) {
 
 // ---- add member ----
 const adding = ref(false);
-const addForm = reactive({ email: '', displayName: '', phone: '', period: newPeriod() });
+const addForm = reactive({ email: '', displayName: '', phone: '', period: newPeriod(), publications: [] });
+
+// ---- publications (Phase 0) ----
+const pubSeats = computed(() => summary.value?.publications || []);
+const pubHasRoom = (p) => (p.current || p.next) && (p.seats === null || p.inUse < p.seats);
+const memberReads = (m, code) => m.publications === null || (m.publications || []).includes(code);
+async function toggleMemberPub(m, code, on) {
+  const current = m.publications === null ? pubSeats.value.map((p) => p.code) : (m.publications || []);
+  const next = on ? [...new Set([...current, code])] : current.filter((c) => c !== code);
+  busy.value = true;
+  try {
+    const res = await orgAdmin.setPublications(m.seatId, next);
+    m.publications = res.publications;
+    say(`${who(m)} now reads ${next.length ? next.join(', ') : 'no publications'}.`);
+    await loadSummary();
+  } catch (e) {
+    say(errMsg(e, 'That did not work.'), false);
+  } finally {
+    busy.value = false;
+  }
+}
 const addError = ref('');
 const busy = ref(false);
 function openAdd() {
-  Object.assign(addForm, { email: '', displayName: '', phone: '', period: newPeriod() });
+  Object.assign(addForm, { email: '', displayName: '', phone: '', period: newPeriod(), publications: pubSeats.value.filter(pubHasRoom).map((p) => p.code) });
   addError.value = '';
   adding.value = true;
 }
@@ -117,6 +140,7 @@ async function submitAdd() {
       email: addForm.email.trim(),
       displayName: addForm.displayName.trim() || undefined,
       phone: addForm.phone.trim() || undefined,
+      publications: addForm.publications,
       ...toPeriodBody(addForm.period)
     });
     adding.value = false;
@@ -326,6 +350,14 @@ onUnmounted(() => { clearTimeout(flashTimer); clearTimeout(searchTimer); });
           </div>
         </section>
 
+        <!-- seats per publication (Phase 0) -->
+        <section v-if="pubSeats.length" class="mt-4 flex flex-wrap gap-2" aria-label="Seats per publication">
+          <span v-for="p in pubSeats" :key="p.code" class="font-mono text-xs px-3 py-1.5 rounded-lg bg-white shadow-sm" :class="p.seats !== null && p.inUse >= p.seats ? 'text-red-700' : 'text-neutral-700'">
+            <span class="font-semibold">{{ p.code }}</span> · {{ p.name }} · {{ p.inUse }} / {{ p.seats ?? '∞' }} seats ·
+            {{ p.current ? `until ${fmt(p.current.end)}` : p.next ? `from ${fmt(p.next.start)}` : `ended ${fmt(p.latestEnd)}` }}
+          </span>
+        </section>
+
         <!-- add member -->
         <section v-if="adding" class="bg-white rounded-xl shadow-sm p-5 mt-5" aria-labelledby="add-h">
           <div class="flex items-baseline justify-between">
@@ -347,6 +379,16 @@ onUnmounted(() => { clearTimeout(flashTimer); clearTimeout(searchTimer); });
                 <input v-model="addForm.phone" type="tel" class="mt-1 w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
               </label>
               <p class="text-xs text-neutral-500">If they don't have an e-paper account yet, one is created and they're emailed a link to set their password.</p>
+              <fieldset v-if="pubSeats.length">
+                <legend class="text-xs font-mono text-neutral-600">Publications they read</legend>
+                <div class="mt-1 flex flex-wrap gap-2">
+                  <label v-for="p in pubSeats" :key="p.code" class="flex items-center gap-2 text-sm border rounded-lg px-3 py-1.5" :class="pubHasRoom(p) ? 'border-neutral-300' : 'border-neutral-200 text-neutral-400'">
+                    <input v-model="addForm.publications" type="checkbox" :value="p.code" :disabled="!pubHasRoom(p)">
+                    <span class="font-mono">{{ p.code }}</span>
+                    <span class="text-xs text-neutral-500">{{ p.seats === null ? 'no limit' : `${Math.max(0, p.seats - p.inUse)} left` }}</span>
+                  </label>
+                </div>
+              </fieldset>
             </div>
             <div>
               <OrgPeriodPicker v-model="addForm.period" :paid-until="paidUntil" id-prefix="add" />
@@ -385,6 +427,12 @@ onUnmounted(() => { clearTimeout(flashTimer); clearTimeout(searchTimer); });
                   <span v-if="isMe(m)" class="font-mono text-[11px] text-neutral-500">(you)</span>
                 </p>
                 <p class="text-xs text-neutral-500 truncate">{{ m.user?.email }}<template v-if="m.user?.phone"> · {{ m.user.phone }}</template></p>
+                <div v-if="pubSeats.length" class="flex flex-wrap gap-1 mt-1">
+                  <label v-for="p in pubSeats" :key="p.code" class="font-mono text-[11px] px-1.5 py-0.5 rounded cursor-pointer select-none" :class="memberReads(m, p.code) ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'" :title="memberReads(m, p.code) ? `Reads ${p.name}. Click to remove.` : `Click to give ${p.name}.`">
+                    <input type="checkbox" class="sr-only" :checked="memberReads(m, p.code)" :disabled="busy" @change="toggleMemberPub(m, p.code, $event.target.checked)">
+                    {{ p.code }}
+                  </label>
+                </div>
               </div>
               <div class="flex flex-wrap items-center gap-1.5 basis-48">
                 <span v-if="m.role === 'admin'" class="font-mono text-[11px] px-2 py-0.5 rounded bg-neutral-900 text-white">admin</span>

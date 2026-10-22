@@ -77,10 +77,14 @@ const showSignInInline = computed(() => isDesktop.value);
 <template>
   <div class="fixed top-0 left-0 right-0 h-[52px] sm:h-[60px] z-[200] bg-neutral-900 border-b border-black flex items-stretch shadow-lg">
     <div class="flex items-center gap-1.5 px-2 sm:gap-2 sm:px-3 flex-none">
-      <img src="/logo.png" alt="New Vision" class="w-8 h-8 sm:w-11 sm:h-11 rounded-md object-contain flex-none" />
+      <!-- Phase 0: the logo leads back to the landing page, where readers pick a paper -->
+      <NuxtLink to="/" aria-label="All publications" class="flex-none">
+        <img src="/logo.png" alt="" class="w-8 h-8 sm:w-11 sm:h-11 rounded-md object-contain" />
+      </NuxtLink>
       <div v-if="reader.edition" class="hidden sm:flex flex-col leading-tight pl-1">
+        <span v-if="reader.edition.publication" class="font-mono text-[11px] whitespace-nowrap" :style="{ color: reader.edition.publication.colour || '#a3a3a3' }">{{ reader.edition.publication.name }}</span>
         <span class="font-mono text-sm text-neutral-200 whitespace-nowrap">
-          {{ new Date(reader.edition.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) }}
+          {{ new Date(reader.edition.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) }}<template v-if="reader.edition.coversTo && reader.edition.coversTo !== reader.edition.date"> – {{ new Date(reader.edition.coversTo).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) }}</template>
         </span>
         <span v-if="reader.edition.volume" class="font-mono text-[11px] text-neutral-500 whitespace-nowrap">Vol.{{ reader.edition.volume }} No.{{ reader.edition.issueNumber }}</span>
       </div>

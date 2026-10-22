@@ -1,13 +1,15 @@
 <script setup>
 /**
- * Route: /[...date] — /, /2026/08/22, etc.
- * No date in the URL -> defaults to today, same rule as the middleware's
- * `GET /api/editions/today` endpoint (this page just calls that with an
- * explicit ISO date so links/bookmarks are stable, rather than baking
- * "today" into the URL itself).
+ * Route: /[...date]                                   MODIFIED (Phase 0)
+ *   /nv                 New Vision, today's edition (or its latest, if none today)
+ *   /nv/2026/10/22      New Vision for that date
+ *   /nvw/2026/10/25     the weekend edition covering that day (dated Sat 24)
+ *   /2026/10/22         older links: redirected to /nv/2026/10/22
+ * "/" itself is the landing page (pages/index.vue), where readers pick a paper.
  */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from '#imports';
+import { NuxtLink } from '#components';
 import { useReaderStore } from '~/stores/reader';
 import { useAccountStore } from '~/stores/account';
 import { useResponsiveReaderMode } from '~/composables/useBreakpoint';
@@ -33,21 +35,39 @@ const paywallOpen = ref(false);
 const searchOpen = ref(false);
 const contentsOpen = ref(false);
 
-const dateIso = computed(() => {
-  const parts = route.params.date || [];
-  if (parts.length === 3) {
-    const [y, m, d] = parts;
+const parts = computed(() => {
+  const p = route.params.date;
+  return Array.isArray(p) ? p : (p ? [p] : []);
+});
+const isLegacyDateUrl = computed(() => /^\d{4}$/.test(parts.value[0] || ''));
+const publication = computed(() => {
+  const first = parts.value[0] || '';
+  return !isLegacyDateUrl.value && /^[A-Za-z0-9]{1,12}$/.test(first) ? first.toUpperCase() : 'NV';
+});
+// 'today' when the URL has no date: today's edition, falling back to the
+// latest (a weekend or monthly paper has no edition most days).
+const requestedDate = computed(() => {
+  const rest = isLegacyDateUrl.value ? parts.value : parts.value.slice(1);
+  if (rest.length === 3) {
+    const [y, m, d] = rest;
     return `${y}-${m}-${d}`;
   }
-  return reader.todayIso();
+  return 'today';
 });
+// The date of the edition actually shown (what the paywall and archive use).
+const dateIso = computed(() => reader.edition?.date || (requestedDate.value === 'today' ? reader.todayIso() : requestedDate.value));
 
 // Responsive default: single-page on mobile/tablet, spread on desktop.
 useResponsiveReaderMode();
 
-async function openDate(iso) {
+function editionPath(pub, iso) {
+  const base = `/${String(pub).toLowerCase()}`;
+  if (!iso) return base;
   const [y, m, d] = iso.split('-');
-  await router.push(`/${y}/${m}/${d}`);
+  return `${base}/${y}/${m}/${d}`;
+}
+async function openDate(iso) {
+  await router.push(editionPath(publication.value, iso));
 }
 
 // Account/entitlement state depends entirely on browser-only mechanisms —
@@ -61,11 +81,18 @@ async function openDate(iso) {
 // onMounted below instead, which never runs on the server, only once
 // hydrated in the real browser. Subsequent client-side route changes (e.g.
 // picking an archive date) still go through this watcher normally.
-watch(dateIso, load);
+watch(() => route.fullPath, load);
 
 async function load() {
+  if (isLegacyDateUrl.value) {
+    await router.replace(editionPath('NV', requestedDate.value));
+    return;
+  }
   await account.refresh();
-  await reader.loadEdition(dateIso.value);
+  await reader.loadEdition(publication.value, requestedDate.value);
+  if (requestedDate.value === 'today' && reader.loadError === 'not_found') {
+    await reader.loadEdition(publication.value, 'latest');
+  }
   archiveOpen.value = false;
   paywallOpen.value = Boolean(reader.edition?.locked);
 }
@@ -116,7 +143,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
     <div class="pt-[52px] sm:pt-[60px] w-full flex-1 flex flex-col items-center justify-center px-3 md:px-6 py-6">
       <div v-if="reader.loading" class="text-neutral-400 font-mono text-sm">Loading edition…</div>
       <div v-else-if="reader.loadError" class="text-neutral-400 font-mono text-sm text-center px-6">
-        <template v-if="reader.loadError === 'not_found'">No edition has been published for {{ dateIso }} yet.</template>
+        <template v-if="reader.loadError === 'not_found'">
+          No {{ publication }} edition covers {{ requestedDate === 'today' ? 'today' : requestedDate }}.
+          <span class="block mt-3">
+            <NuxtLink :to="editionPath(publication)" class="underline text-neutral-200">Latest {{ publication }} edition</NuxtLink>
+            <span class="mx-2">·</span>
+            <NuxtLink to="/" class="underline text-neutral-200">All publications</NuxtLink>
+          </span>
+        </template>
         <template v-else>Something went wrong loading this edition. Please try again.</template>
       </div>
       <div v-else class="flex items-center justify-center gap-2 md:gap-5 w-full">
@@ -130,13 +164,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
     </div>
 
     <PulloutPanel :story="openStory" @close="openStory = null" />
-    <ArchiveModal :open="archiveOpen" @close="archiveOpen = false" @select-date="handleSelectArchiveDate" />
+    <ArchiveModal :open="archiveOpen" :publication="publication" @close="archiveOpen = false" @select-date="handleSelectArchiveDate" />
     <SearchOverlay :open="searchOpen" @close="searchOpen = false" @open-pullout="openStory = $event" />
     <ContentsDrawer :open="contentsOpen" @close="contentsOpen = false" />
     <PaywallModal
       :open="paywallOpen"
+      :publication="publication"
+      :edition="reader.edition"
       :date-iso="dateIso"
-      :price="reader.edition?.price"
       @close="closePaywall"
     />
   </div>

@@ -2,7 +2,11 @@
 import { ref, computed } from 'vue';
 import { useAccountStore } from '~/stores/account';
 
-const props = defineProps({ open: { type: Boolean, required: true } });
+// Phase 0: unlocked days are per publication (each paper is sold separately).
+const props = defineProps({
+  open: { type: Boolean, required: true },
+  publication: { type: String, default: 'NV' }
+});
 const emit = defineEmits(['close', 'select-date']);
 
 const account = useAccountStore();
@@ -24,9 +28,7 @@ function isFuture(day) {
   return new Date(selectedYear.value, calMonth.value, day) > today;
 }
 function isUnlocked(day) {
-  const iso = dateIsoFor(day);
-  const isToday = iso === today.toISOString().slice(0, 10);
-  return isToday ? account.subscriptionActive : account.hasPurchased(iso);
+  return account.canRead(props.publication, dateIsoFor(day));
 }
 
 function pickYear(y) {
@@ -47,7 +49,7 @@ function selectDay(day) {
   >
     <div v-if="open" class="w-full max-w-3xl h-[min(84vh,700px)] bg-white text-neutral-900 rounded-xl overflow-hidden flex flex-col shadow-2xl">
       <div class="flex items-center justify-between px-6 py-4 bg-neutral-100 border-b">
-        <h2 class="font-serif font-bold text-xl">Archive</h2>
+        <h2 class="font-serif font-bold text-xl">Archive <span class="font-mono text-sm text-neutral-500 font-normal">· {{ publication }}</span></h2>
         <button class="w-8 h-8 rounded-full hover:bg-black/5" @click="emit('close')">✕</button>
       </div>
       <div class="flex-1 min-h-0 flex gap-6 p-6">

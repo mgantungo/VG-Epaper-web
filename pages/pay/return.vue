@@ -12,6 +12,8 @@ const account = useAccountStore();
 
 const receiptToken = route.query.receiptToken;
 const dateIso = route.query.date;
+// Phase 0: which paper was bought (/nv, /bk, …). Older links without it mean New Vision.
+const pub = String(route.query.pub || 'nv').toLowerCase().replace(/[^a-z0-9]/g, '') || 'nv';
 
 // 'waiting' | 'success' | 'failed' | 'timeout' | 'error'
 const status = ref('waiting');
@@ -19,9 +21,9 @@ const failureReason = ref(null);
 let pollTimer = null;
 
 function editionPath() {
-  if (!dateIso) return '/';
+  if (!dateIso || !/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return `/${pub}`;
   const [y, m, d] = dateIso.split('-');
-  return `/${y}/${m}/${d}`;
+  return `/${pub}/${y}/${m}/${d}`;
 }
 
 // Polls the account's own entitlement state, not just the payment status —
@@ -34,20 +36,18 @@ function editionPath() {
 // completes, short enough not to leave someone staring at "confirmed"
 // for long if something's genuinely slow.
 async function waitForEntitlementThenRedirect() {
+  // Phase 0: the payment status itself now says when access exists
+  // (access_ready), so this no longer guesses from the account's date
+  // ranges — which a bundle or a weekend edition made unreliable.
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
-    await account.refresh();
-    if (account.hasPurchased(dateIso)) {
-      router.push(editionPath());
-      return;
-    }
+    try {
+      const s = await api.getPaymentStatus(receiptToken);
+      if (s.access_ready) break;
+    } catch { /* keep trying until the deadline */ }
     await new Promise(r => setTimeout(r, 800));
   }
-  // Payment succeeded but the entitlement still isn't visible after a
-  // generous wait — genuinely unusual (a slow/failed grantEntitlement on
-  // the CMS side), not something to silently redirect into a locked page
-  // over. Send them to the edition anyway rather than strand them here
-  // indefinitely; a manual refresh there will pick it up once it lands.
+  await account.refresh();
   router.push(editionPath());
 }
 

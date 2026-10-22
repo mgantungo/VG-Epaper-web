@@ -4,6 +4,11 @@ import { useRuntimeConfig, useCookie, $fetch } from '#imports';
  * apps/web/composables/useEpaperApi.js  (srcDir-relative)     MODIFIED (organisations)
  * Change: adds `orgAdmin` (Organisation Admin dashboard calls) and
  * inspectInvite()/acceptInvite(). Everything that was here is unchanged.
+ *
+ * Phase 0 (publications, 23 Oct 2026): every paper is sold separately, so
+ * editions, access ranges, plans and checkout all name a publication.
+ * getCatalogue() feeds the landing page; mediaUrl() makes a public URL
+ * (front-page covers) usable directly in <img src>.
  */
 
 export function useEpaperApi() {
@@ -59,12 +64,25 @@ export function useEpaperApi() {
     }
   }
 
-  async function getEdition(dateIso) {
-    return authedFetch(`${config.public.middlewareUrl}/api/editions/${dateIso}`);
+  /** dateIso: YYYY-MM-DD, 'today' or 'latest'. publication: NV, BK, … */
+  async function getEdition(publication, dateIso) {
+    const pub = String(publication || 'nv').toLowerCase();
+    return authedFetch(`${config.public.middlewareUrl}/api/editions/${pub}/${dateIso}`);
   }
 
-  async function getPurchasedDates() {
-    return authedFetch(`${config.public.middlewareUrl}/api/editions/me/purchased-dates`);
+  /** What this reader can open of one publication: { ranges: [{ start, end, source }] }. */
+  async function getRanges(publication) {
+    return authedFetch(`${config.public.middlewareUrl}/api/editions/me/ranges`, { query: { publication } });
+  }
+
+  /** Landing page: titles -> publications (latest edition, reader's access), plans. */
+  async function getCatalogue() {
+    return authedFetch(`${config.public.middlewareUrl}/api/catalogue`);
+  }
+
+  /** Absolute URL for a public middleware path (e.g. a cover.jpg). */
+  function mediaUrl(relativeUrl) {
+    return relativeUrl ? `${config.public.middlewareUrl}${relativeUrl}` : null;
   }
 
   async function getAccount() {
@@ -89,8 +107,8 @@ export function useEpaperApi() {
    * same prices anyone would see on a pricing page), no reason to require
    * a valid session just to view them.
    */
-  async function getPlans() {
-    return $fetch(`${config.public.middlewareUrl}/api/pay/plans`);
+  async function getPlans(publication) {
+    return $fetch(`${config.public.middlewareUrl}/api/pay/plans`, { query: publication ? { publication } : {} });
   }
 
   /**
@@ -107,10 +125,15 @@ export function useEpaperApi() {
    * Callers should show a "check your phone" state and poll
    * getPaymentStatus(receiptToken) — see PaywallModal.vue.
    */
-  async function startCheckout(dateIso, phoneNumber, paymentmethod, planKey) {
+  /**
+   * Phase 0: { planKey, phoneNumber, paymentmethod, dates? }. dates is only
+   * used by single-issue plans (the edition(s) being bought); the server
+   * works out the price and the editions itself.
+   */
+  async function startCheckout({ planKey, phoneNumber, paymentmethod, dates }) {
     return authedFetch(`${config.public.middlewareUrl}/api/pay/checkout`, {
       method: 'POST',
-      body: { date: dateIso, phoneNumber, paymentmethod, planKey }
+      body: { planKey, phoneNumber, paymentmethod, ...(dates?.length ? { dates } : {}) }
     });
   }
 
@@ -180,6 +203,8 @@ export function useEpaperApi() {
     setRole: (seatId, role) => authedFetch(`${orgAdminBase()}/members/${seatId}/role`, { method: 'POST', body: { role } }),
     remove: (seatId, reason) => authedFetch(`${orgAdminBase()}/members/${seatId}/remove`, { method: 'POST', body: { reason } }),
     resendInvite: (seatId) => authedFetch(`${orgAdminBase()}/members/${seatId}/resend-invite`, { method: 'POST' }),
+    // Phase 0: which paid publications this member reads, e.g. ['NV', 'BK']
+    setPublications: (seatId, publications) => authedFetch(`${orgAdminBase()}/members/${seatId}/publications`, { method: 'POST', body: { publications } }),
     audit: (query = {}) => authedFetch(`${orgAdminBase()}/audit`, { query }),
     template: () => authedFetch(`${orgAdminBase()}/import/template`, { responseType: 'blob' }),
     // formData: FormData with `file` and optionally `defaults` (JSON string)
@@ -202,7 +227,7 @@ export function useEpaperApi() {
   }
 
   return {
-    getEdition, getPurchasedDates, getAccount, startCheckout, getPaymentStatus, getPlans,
+    getEdition, getRanges, getCatalogue, mediaUrl, getAccount, startCheckout, getPaymentStatus, getPlans,
     login, register, fetchImageBlob,
     orgAdmin, inspectInvite, acceptInvite
   };

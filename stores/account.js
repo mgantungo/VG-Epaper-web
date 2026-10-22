@@ -16,6 +16,10 @@ export const useAccountStore = defineStore('account', () => {
   // list of { start, end } ranges instead. See the middleware's
   // getEntitlementRanges() for why.
   const entitlementRanges = ref([]);
+  // Phase 0: access per publication — { NV: { today, until, via, ranges: [{start,end,source}] }, BK: {...} }.
+  // Each paper is sold separately, so "is this date unlocked" always names one.
+  const publications = ref({});
+  const organisation = ref(null);
   const loaded = ref(false);
   const user = ref(null); // { id, username, email } | null
 
@@ -27,11 +31,15 @@ export const useAccountStore = defineStore('account', () => {
       subscriptionActive.value = me.subscriptionActive;
       subscriptionExpiresAt.value = me.subscriptionExpiresAt;
       entitlementRanges.value = me.entitlementRanges || [];
+      publications.value = me.publications || {};
+      organisation.value = me.organisation || null;
       if (me.user) user.value = me.user; // repopulates after a page refresh, not just right after login/register
     } catch {
       // not signed in, token expired, or middleware unreachable — treat as no entitlements
       subscriptionActive.value = false;
       entitlementRanges.value = [];
+      publications.value = {};
+      organisation.value = null;
     } finally {
       loaded.value = true;
     }
@@ -42,6 +50,18 @@ export const useAccountStore = defineStore('account', () => {
    * check, since a range can now span more than one day. */
   function hasPurchased(dateIso) {
     return entitlementRanges.value.some(r => dateIso >= r.start && dateIso <= r.end);
+  }
+
+  /** Can the reader open an edition of `publication` covering [from, to]
+   * (to defaults to from)? Same overlap rule as the middleware's access check. */
+  function canRead(publication, from, to = from) {
+    const ranges = publications.value[String(publication || '').toUpperCase()]?.ranges || [];
+    return ranges.some(r => r.start <= to && from <= r.end);
+  }
+
+  /** { today, until, via } for one publication, or null. */
+  function accessTo(publication) {
+    return publications.value[String(publication || '').toUpperCase()] || null;
   }
 
   // email/password/displayName/phone — matches the epaper-user identity
@@ -65,10 +85,12 @@ export const useAccountStore = defineStore('account', () => {
     user.value = null;
     subscriptionActive.value = false;
     entitlementRanges.value = [];
+    publications.value = {};
+    organisation.value = null;
   }
 
   return {
-    subscriptionActive, subscriptionExpiresAt, entitlementRanges, loaded, user,
-    loggedIn, refresh, hasPurchased, login, register, logout
+    subscriptionActive, subscriptionExpiresAt, entitlementRanges, publications, organisation, loaded, user,
+    loggedIn, refresh, hasPurchased, canRead, accessTo, login, register, logout
   };
 });

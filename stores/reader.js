@@ -27,6 +27,9 @@ export const useReaderStore = defineStore('reader', () => {
   const { isMobile } = useToolbarBreakpoint();
 
   const currentDate = ref(todayIso());
+  // Phase 0: the publication being read (NV, BK, NVW, …). Editions are
+  // addressed by publication + date; see pages/[...date].vue for the URLs.
+  const currentPublication = ref('NV');
   const edition = ref(null);
   const viewMode = ref('double'); // 'single' | 'double' — the reader's PREFERENCE, not necessarily what's shown; see effectiveViewMode
   const viewModeManuallySet = ref(false); // stops useResponsiveReaderMode fighting a manual toolbar choice
@@ -37,8 +40,11 @@ export const useReaderStore = defineStore('reader', () => {
   const zoom = ref(1);
   const soundEnabled = ref(true);
 
+  // Kampala calendar day (UTC+3) — the date printed on the paper, and the
+  // same "today" the middleware uses. The old UTC date was a day behind
+  // between midnight and 03:00 Kampala time.
   function todayIso() {
-    return new Date().toISOString().slice(0, 10);
+    return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
   }
 
   // ---- spread geometry, same rule as the mockup: page 1 alone on the right,
@@ -80,13 +86,16 @@ export const useReaderStore = defineStore('reader', () => {
   const atStart = computed(() => currentIndex.value === 0);
   const atEnd = computed(() => currentIndex.value === Math.max(activeViews.value.length - 1, 0));
 
-  async function loadEdition(dateIso) {
+  /** dateIso: YYYY-MM-DD, 'today' or 'latest'. */
+  async function loadEdition(publication, dateIso) {
     loading.value = true;
     loadError.value = null;
+    currentPublication.value = String(publication || 'NV').toUpperCase();
     currentDate.value = dateIso;
     currentIndex.value = 0;
     try {
-      edition.value = await api.getEdition(dateIso);
+      edition.value = await api.getEdition(currentPublication.value, dateIso);
+      if (edition.value?.date) currentDate.value = edition.value.date;
     } catch (err) {
       // Critical: clear out whatever the PREVIOUS date's edition was. This
       // is the actual fix for "the archive shows the same copy for every
@@ -157,7 +166,7 @@ export const useReaderStore = defineStore('reader', () => {
   }
 
   return {
-    currentDate, edition, viewMode, effectiveViewMode, viewModeManuallySet, currentIndex, animating, loading, loadError,
+    currentDate, currentPublication, edition, viewMode, effectiveViewMode, viewModeManuallySet, currentIndex, animating, loading, loadError,
     zoom, soundEnabled,
     doubleViews, singleViews, activeViews, currentView, atStart, atEnd,
     loadEdition, setViewMode, turn, jumpTo, todayIso, setZoom, resetZoom, toggleSound
