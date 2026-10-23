@@ -11,7 +11,13 @@ const emit = defineEmits(['close', 'select-date']);
 
 const account = useAccountStore();
 const today = new Date();
-const years = Array.from({ length: 5 }, (_, i) => today.getFullYear() - i);
+// Archives reach back about 100 years, so every year from now to 100 years
+// ago is listed (newest first), plus a quick jump by decade.
+const ARCHIVE_YEARS = 100;
+const years = Array.from({ length: ARCHIVE_YEARS + 1 }, (_, i) => today.getFullYear() - i);
+const decades = [...new Set(years.map(y => Math.floor(y / 10) * 10))];
+const selectedDecade = ref(Math.floor(today.getFullYear() / 10) * 10);
+const yearsInDecade = computed(() => years.filter(y => Math.floor(y / 10) * 10 === selectedDecade.value));
 const selectedYear = ref(today.getFullYear());
 const calMonth = ref(today.getMonth());
 
@@ -53,13 +59,21 @@ function selectDay(day) {
         <button class="w-8 h-8 rounded-full hover:bg-black/5" @click="emit('close')">✕</button>
       </div>
       <div class="flex-1 min-h-0 flex gap-6 p-6">
-        <div class="flex-none w-28 flex flex-col">
+        <div class="flex-none w-28 flex flex-col min-h-0">
+          <label class="block mb-2">
+            <span class="sr-only">Decade</span>
+            <select v-model.number="selectedDecade" class="w-full border border-neutral-300 rounded-md px-2 py-1.5 text-sm font-mono bg-white" @change="pickYear(yearsInDecade[0])">
+              <option v-for="d in decades" :key="d" :value="d">{{ d }}s</option>
+            </select>
+          </label>
+          <div class="overflow-y-auto min-h-0">
           <div
-            v-for="y in years" :key="y"
+            v-for="y in yearsInDecade" :key="y"
             class="py-3 border-b cursor-pointer font-serif"
             :class="y === selectedYear ? 'font-bold border-neutral-900' : 'text-neutral-700 border-neutral-200'"
             @click="pickYear(y)"
           >{{ y }}</div>
+          </div>
         </div>
         <div class="flex-1 overflow-y-auto">
           <div class="flex items-center justify-center gap-5 mb-4">
