@@ -39,10 +39,13 @@ onMounted(async () => {
   account.refresh();
 });
 
-const titles = computed(() => catalogue.value?.titles || []);
+const titles = computed(() => (catalogue.value?.titles || []).map(t => ({ ...t, publications: (t.publications || []).filter(p => p && p.code) })).filter(t => t.publications.length));
 const mainTitles = computed(() => titles.value.filter(t => t.publications.some(p => MAIN_FREQUENCIES.includes(p.frequency))));
 const otherTitles = computed(() => titles.value.filter(t => !mainTitles.value.includes(t)));
-const plans = computed(() => catalogue.value?.plans || []);
+// Only plans that name at least one publication can be linked to; anything
+// else (e.g. a leftover plan from before publications existed) is skipped
+// rather than allowed to break the page.
+const plans = computed(() => (catalogue.value?.plans || []).filter(p => Array.isArray(p.publications) && p.publications.length));
 
 function titleCodes(t) {
   return t.publications.map(p => p.code);
@@ -74,7 +77,7 @@ function editionText(p) {
   return `${isCurrent ? '' : 'Latest: '}${when}${e.pageCount ? ` · ${e.pageCount} pages` : ''}`;
 }
 function readPath(p) {
-  return `/${p.code.toLowerCase()}`;
+  return `/${String(p?.code || 'nv').toLowerCase()}`;
 }
 function accessText(p) {
   if (!p.access) return null;
@@ -91,7 +94,7 @@ function termText(plan) {
 }
 const money = (plan) => `${plan.currency || 'UGX'} ${Number(plan.price).toLocaleString()}`;
 function planPath(plan) {
-  return { path: `/${plan.publications[0].toLowerCase()}`, query: { plan: plan.key } };
+  return { path: `/${String(plan.publications?.[0] || 'nv').toLowerCase()}`, query: { plan: plan.key } };
 }
 function chipStyle(code) {
   const c = pubByCode.value[code]?.colour || '#525252';
