@@ -1,4 +1,5 @@
 import { useRuntimeConfig, useCookie, $fetch } from '#imports';
+import { trackingHeaders, takeVia } from '~/composables/useReadingTracker';
 
 /**
  * apps/web/composables/useEpaperApi.js  (srcDir-relative)     MODIFIED (organisations)
@@ -9,6 +10,12 @@ import { useRuntimeConfig, useCookie, $fetch } from '#imports';
  * editions, access ranges, plans and checkout all name a publication.
  * getCatalogue() feeds the landing page; mediaUrl() makes a public URL
  * (front-page covers) usable directly in <img src>.
+ *
+ * Phases 1–4 (analytics): every middleware call carries the visitor and
+ * session ids (x-visitor-id, x-session-id) so an edition opened and the
+ * pages then read join up into one reading session; getEdition() says where
+ * the reader came from (?via=landing|archive|search). startCheckout() names
+ * the paper being read, for the paywall-to-paid funnel.
  */
 
 export function useEpaperApi() {
@@ -36,7 +43,7 @@ export function useEpaperApi() {
   async function authedFetch(url, opts = {}) {
     const attempt = () => $fetch(url, {
       ...opts,
-      headers: { ...(opts.headers || {}), ...authHeaders() },
+      headers: { ...trackingHeaders(), ...(opts.headers || {}), ...authHeaders() },
       credentials: 'include'
     });
 
@@ -67,7 +74,8 @@ export function useEpaperApi() {
   /** dateIso: YYYY-MM-DD, 'today' or 'latest'. publication: NV, BK, … */
   async function getEdition(publication, dateIso) {
     const pub = String(publication || 'nv').toLowerCase();
-    return authedFetch(`${config.public.middlewareUrl}/api/editions/${pub}/${dateIso}`);
+    const via = takeVia();
+    return authedFetch(`${config.public.middlewareUrl}/api/editions/${pub}/${dateIso}`, via ? { query: { via } } : {});
   }
 
   /** What this reader can open of one publication: { ranges: [{ start, end, source }] }. */
@@ -130,10 +138,10 @@ export function useEpaperApi() {
    * used by single-issue plans (the edition(s) being bought); the server
    * works out the price and the editions itself.
    */
-  async function startCheckout({ planKey, phoneNumber, paymentmethod, dates }) {
+  async function startCheckout({ planKey, phoneNumber, paymentmethod, dates, publication }) {
     return authedFetch(`${config.public.middlewareUrl}/api/pay/checkout`, {
       method: 'POST',
-      body: { planKey, phoneNumber, paymentmethod, ...(dates?.length ? { dates } : {}) }
+      body: { planKey, phoneNumber, paymentmethod, ...(dates?.length ? { dates } : {}), ...(publication ? { publication } : {}) }
     });
   }
 
@@ -206,6 +214,8 @@ export function useEpaperApi() {
     // Phase 0: which paid publications this member reads, e.g. ['NV', 'BK']
     setPublications: (seatId, publications) => authedFetch(`${orgAdminBase()}/members/${seatId}/publications`, { method: 'POST', body: { publications } }),
     audit: (query = {}) => authedFetch(`${orgAdminBase()}/audit`, { query }),
+    // Phases 1–4: days each member was active and the papers they opened (no pages or stories)
+    usage: (month) => authedFetch(`${orgAdminBase()}/usage`, { query: month ? { month } : {} }),
     template: () => authedFetch(`${orgAdminBase()}/import/template`, { responseType: 'blob' }),
     // formData: FormData with `file` and optionally `defaults` (JSON string)
     previewImport: (formData) => authedFetch(`${orgAdminBase()}/import/preview`, { method: 'POST', body: formData }),

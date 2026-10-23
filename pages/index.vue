@@ -13,11 +13,13 @@
  * (handle > Publications > "Section on landing page"), covers, prices and
  * plans are managed in handle, never hard-coded here.
  * Loaded in the browser only (the access-token cookie is client-side).
+ * Phases 1–4: opening a paper from here is recorded as "came in by landing page".
  */
 import { ref, reactive, computed, onMounted } from 'vue';
 import { NuxtLink } from '#components';
 import { useEpaperApi } from '~/composables/useEpaperApi';
 import { useAccountStore } from '~/stores/account';
+import { setNextVia } from '~/composables/useReadingTracker';
 
 useHead({ title: 'Vision Group e-papers' });
 
@@ -110,7 +112,7 @@ const cheapest = computed(() => plans.value.reduce((m, p) => (m === null || Numb
           <h2 :id="`sec-${s.key}`" class="text-2xl sm:text-3xl font-bold text-[#6b0f0f] mb-5">{{ s.label }}</h2>
           <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-8 sm:gap-x-8">
             <li v-for="p in s.items" :key="p.code">
-              <NuxtLink :to="readPath(p)" class="group block" :aria-label="`${p.name}, ${editionDate(p)}`">
+              <NuxtLink :to="readPath(p)" class="group block" @click="setNextVia('landing')" :aria-label="`${p.name}, ${editionDate(p)}`">
                 <div class="relative rounded-2xl border-[3px] border-neutral-300 group-hover:border-neutral-500 bg-neutral-100 p-1.5 shadow-sm group-hover:shadow-lg transition">
                   <img
                     v-if="coverSrc(p)"
@@ -152,7 +154,7 @@ const cheapest = computed(() => plans.value.reduce((m, p) => (m === null || Numb
 
           <ul v-if="plans.length" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 p-6 sm:p-8">
             <li v-for="plan in plans" :key="plan.key">
-              <NuxtLink :to="planPath(plan)" class="block h-full bg-white rounded-xl border border-neutral-200 hover:border-neutral-900 p-4">
+              <NuxtLink :to="planPath(plan)" @click="setNextVia('landing')" class="block h-full bg-white rounded-xl border border-neutral-200 hover:border-neutral-900 p-4">
                 <span class="flex flex-wrap gap-1.5">
                   <span v-for="c in plan.publications" :key="c" class="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded text-white" :style="{ background: pubByCode[c]?.colour || '#525252' }">{{ c }}</span>
                 </span>

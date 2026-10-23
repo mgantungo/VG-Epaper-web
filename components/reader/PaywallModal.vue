@@ -145,7 +145,8 @@ async function continueToPayment() {
       planKey: selectedPlan.value.key,
       phoneNumber: phoneNumber.value.trim(),
       paymentmethod: 'momo',
-      dates: selectedPlan.value.kind === 'single_issue' ? [props.edition?.date || props.dateIso] : undefined
+      dates: selectedPlan.value.kind === 'single_issue' ? [props.edition?.date || props.dateIso] : undefined,
+      publication: props.publication // analytics: the paper being read when checkout started
     });
     emit('close');
     router.push({

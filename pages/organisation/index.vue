@@ -10,6 +10,8 @@
   UPDATED (Phase 0, publications): seats per publication (no amounts), and
   which paid publications each member reads, set when adding a member and
   switchable per member. Each publication's seats are capped by its contract.
+  UPDATED (Phases 1–4, analytics): a Usage tab — which days each member was
+  active and which papers they opened (components/OrgUsagePanel.vue).
 -->
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -17,6 +19,7 @@ import { definePageMeta, useHead } from '#imports';
 import { NuxtLink } from '#components';
 import { useEpaperApi } from '~/composables/useEpaperApi';
 import OrgPeriodPicker, { toPeriodBody, newPeriod } from '~/components/OrgPeriodPicker.vue';
+import OrgUsagePanel from '~/components/OrgUsagePanel.vue';
 
 definePageMeta({ middleware: 'org-admin' });
 useHead({ title: 'Manage organisation — Vision Group e-papers' });
@@ -404,8 +407,12 @@ onUnmounted(() => { clearTimeout(flashTimer); clearTimeout(searchTimer); });
         <!-- tabs -->
         <div class="mt-6 flex gap-1 border-b border-neutral-300" role="tablist">
           <button role="tab" :aria-selected="tab === 'members'" class="px-4 py-2 text-sm -mb-px border-b-2" :class="tab === 'members' ? 'border-neutral-900 font-semibold' : 'border-transparent text-neutral-500'" @click="tab = 'members'">Members <span class="font-mono text-xs text-neutral-500">{{ pagination?.total ?? '' }}</span></button>
+          <button role="tab" :aria-selected="tab === 'usage'" class="px-4 py-2 text-sm -mb-px border-b-2" :class="tab === 'usage' ? 'border-neutral-900 font-semibold' : 'border-transparent text-neutral-500'" @click="tab = 'usage'">Usage</button>
           <button role="tab" :aria-selected="tab === 'activity'" class="px-4 py-2 text-sm -mb-px border-b-2" :class="tab === 'activity' ? 'border-neutral-900 font-semibold' : 'border-transparent text-neutral-500'" @click="tab = 'activity'">Activity</button>
         </div>
+
+        <!-- usage (Phases 1–4): days and papers per member -->
+        <OrgUsagePanel v-if="tab === 'usage'" :load="orgAdmin.usage" />
 
         <!-- members -->
         <section v-if="tab === 'members'" class="bg-white rounded-b-xl shadow-sm">
@@ -465,7 +472,7 @@ onUnmounted(() => { clearTimeout(flashTimer); clearTimeout(searchTimer); });
         </section>
 
         <!-- activity -->
-        <section v-else class="bg-white rounded-b-xl shadow-sm p-4">
+        <section v-else-if="tab === 'activity'" class="bg-white rounded-b-xl shadow-sm p-4">
           <ul class="divide-y divide-neutral-100">
             <li v-for="e in audit" :key="e.id" class="py-2.5 flex flex-wrap gap-x-4 gap-y-1 text-sm">
               <span class="font-mono text-xs text-neutral-500 w-32 shrink-0">{{ fmtTime(e.at) }}</span>

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
 import { useReaderStore } from '~/stores/reader';
+import { useReadingTracker } from '~/composables/useReadingTracker';
 
 const props = defineProps({ open: { type: Boolean, required: true } });
 const emit = defineEmits(['close', 'open-pullout']);
@@ -39,6 +40,14 @@ const results = computed(() => {
     s.kicker?.toLowerCase().includes(q) ||
     s.teaser?.toLowerCase().includes(q)
   ).slice(0, 10);
+});
+
+// Analytics: a search is recorded once typing pauses (3+ characters).
+const tracker = useReadingTracker();
+let searchTimer = null;
+watch(query, (q) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => tracker.searched(q, results.value.length, reader.edition?.publicationCode), 1500);
 });
 
 function selectResult(story) {

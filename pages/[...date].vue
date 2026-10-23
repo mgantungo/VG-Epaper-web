@@ -6,6 +6,9 @@
  *   /nvw/2026/10/25     the weekend edition covering that day (dated Sat 24)
  *   /2026/10/22         older links: redirected to /nv/2026/10/22
  * "/" itself is the landing page (pages/index.vue), where readers pick a paper.
+ *
+ * Phases 1–4: the reading tracker follows the pages on screen, stories
+ * pulled out and the paywall (composables/useReadingTracker.js).
  */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from '#imports';
@@ -22,6 +25,7 @@ import ArchiveModal from '~/components/reader/ArchiveModal.vue';
 import PaywallModal from '~/components/reader/PaywallModal.vue';
 import SearchOverlay from '~/components/reader/SearchOverlay.vue';
 import ContentsDrawer from '~/components/reader/ContentsDrawer.vue';
+import { useReadingTracker, setNextVia } from '~/composables/useReadingTracker';
 
 const route = useRoute();
 const router = useRouter();
@@ -34,6 +38,11 @@ const archiveOpen = ref(false);
 const paywallOpen = ref(false);
 const searchOpen = ref(false);
 const contentsOpen = ref(false);
+const tracker = useReadingTracker();
+watch(openStory, (story) => tracker.storyChanged(reader, story));
+watch(paywallOpen, (open) => {
+  if (open && reader.edition?.locked) tracker.paywallShown(reader.edition.publicationCode, reader.edition.date);
+});
 
 const parts = computed(() => {
   const p = route.params.date;
@@ -108,6 +117,7 @@ function handleLast() {
   if (pages.length) reader.jumpTo(pages[pages.length - 1].pageNumber);
 }
 function handleSelectArchiveDate(iso) {
+  setNextVia('archive');
   openDate(iso);
 }
 
@@ -122,11 +132,17 @@ function onKeydown(e) {
   else if (e.key === 'ArrowLeft') { e.preventDefault(); handleTurn('prev'); }
   else if (e.key === 'Escape') { archiveOpen.value = false; searchOpen.value = false; contentsOpen.value = false; }
 }
+let stopTracking = null;
 onMounted(() => {
   load();
+  stopTracking = tracker.watchReader(reader);
   window.addEventListener('keydown', onKeydown);
 });
-onUnmounted(() => window.removeEventListener('keydown', onKeydown));
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown);
+  stopTracking?.();
+  tracker.flushNow();
+});
 </script>
 
 <template>
